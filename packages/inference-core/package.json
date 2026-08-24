@@ -1,0 +1,43 @@
+{
+  "name": "inference-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/host/worker-entry.ts",
+    "./models": "./src/models/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "effect": "^3.0.0"
+  },
+  "peerDependencies": {
+    "onnxruntime-web": "^1.17.0",
+    "@jsquash/avif": "*",
+    "@jsquash/heic": "*",
+    "@jsquash/tiff": "*"
+  },
+  "peerDependenciesMeta": {
+    "onnxruntime-web": {
+      "optional": true
+    },
+    "@jsquash/avif": {
+      "optional": true
+    },
+    "@jsquash/heic": {
+      "optional": true
+    },
+    "@jsquash/tiff": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/bun": "latest"
+  }
+}

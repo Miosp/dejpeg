@@ -1,0 +1,1 @@
+import "inference-core/worker";

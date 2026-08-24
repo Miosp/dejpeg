@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# JS / Bun / Node
+node_modules/
+dist/
+.build/
+.cache/
+*.tsbuildinfo
+.DS_Store
+
+# Local artifacts never committed
+FBCNN_WEIGHTS_DIR/
+FBCNN_TESTSETS_DIR/
+*.pth
+*.pt
+test_results/
+
+# Large local ONNX model artifacts (hosted externally in prod)
+apps/web/public/models/*.onnx
+
+# Internal workspace docs (kept locally, not published)
+internal/
+
+# Legacy working dirs
+dejpegweb/
+*.tmp
+
+# Astro
+.astro/

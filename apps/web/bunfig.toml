@@ -1,0 +1,7 @@
+[test]
+# Polyfill Svelte 5 runes and a minimal DOM harness so `.svelte.ts` modules
+# can be imported and exercised by `bun test`.
+preload = [
+  "./tests/svelte-rune-preload.ts",
+  "./tests/dom-preload.ts",
+]

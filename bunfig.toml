@@ -1,0 +1,7 @@
+[install]
+# Bun workspace uses the lockfile at repo root
+lockfile = true
+
+[test]
+# Bun's built-in test runner configuration
+coverage = false

@@ -1,0 +1,44 @@
+/* apps/web/src/styles/theme.css */
+
+:root,
+:root[data-theme="light"] {
+  --bg-canvas: #f5f5f5;
+  --bg-panel: rgba(255, 255, 255, 0.92);
+  --bg-panel-hover: rgba(234, 234, 234, 0.95);
+  --bg-queue: #ebebeb;
+  --bg-thumb: #d8d8d8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666;
+  --text-on-accent: #fff;
+  --accent: #0066cc;
+  --accent-hover: #0052a3;
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --radius: 8px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --badge-pending: #999;
+  --badge-processing: #4a9eff;
+  --badge-done: #22c55e;
+  --badge-error: #ef4444;
+}
+
+:root[data-theme="dark"] {
+  --bg-canvas: #0f0f0f;
+  --bg-panel: rgba(38, 38, 38, 0.92);
+  --bg-panel-hover: rgba(51, 51, 51, 0.95);
+  --bg-queue: #1a1a1a;
+  --bg-thumb: #2a2a2a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #999;
+  --text-on-accent: #fff;
+  --accent: #4a9eff;
+  --accent-hover: #3a8eef;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --radius: 8px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --badge-pending: #666;
+  --badge-processing: #4a9eff;
+  --badge-done: #22c55e;
+  --badge-error: #ef4444;
+}

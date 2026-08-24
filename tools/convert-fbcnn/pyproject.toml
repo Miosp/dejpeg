@@ -1,0 +1,12 @@
+[project]
+name = "convert-fbcnn"
+version = "0.1.0"
+description = "PyTorch to ONNX conversion tool for the fbcnn port"
+requires-python = ">=3.11"
+dependencies = [
+    "fbcnn",
+    "onnx>=1.16",
+    "onnxruntime>=1.17",
+    "onnxconverter-common>=1.14",
+    "numpy>=1.26",
+]

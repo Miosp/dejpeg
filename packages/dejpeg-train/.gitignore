@@ -1,0 +1,21 @@
+# local venv (real one lives on ext4; ignore any accidental local copy)
+.venv/
+
+# data + outputs never live here (ext4), but ignore strays.
+# Anchored to package root so src/dejpeg/data/ (the python package) is NOT ignored.
+/data/
+/runs/
+/shards/
+wandb/
+*.tar
+
+# python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# artifacts
+*.onnx
+*.onnx.tar
+checkpoints/
+*.ckpt

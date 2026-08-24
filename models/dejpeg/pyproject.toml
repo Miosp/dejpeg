@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dejpeg"
+version = "1.0.0"
+description = "Compact perceptual JPEG artifact removal: 2.6M-param activation-free U-Net with training and inference code"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["jpeg", "image-restoration", "artifact-removal", "onnx"]
+dependencies = [
+    "torch>=2.0",
+    "numpy",
+    "pillow>=10",
+]
+
+[project.optional-dependencies]
+train = ["lpips"]
+export = ["onnx", "onnxsim", "onnxconverter-common"]
+eval = ["pyiqa"]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+dejpeg = "dejpeg.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dejpeg"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

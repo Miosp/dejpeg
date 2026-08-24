@@ -1,0 +1,12 @@
+[project]
+name = "dejpeg-workspace"
+version = "0"
+description = "Python packages of the dejpeg monorepo"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = ["packages/fbcnn-py", "tools/convert-fbcnn"]
+
+[tool.uv.sources]
+fbcnn = { workspace = true }
+

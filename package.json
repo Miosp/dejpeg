@@ -1,0 +1,13 @@
+{
+  "name": "dejpeg",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/inference-core"],
+  "scripts": {
+    "dev": "bun run --filter web dev",
+    "build": "bun run --filter web build",
+    "test": "bun run --filter inference-core test",
+    "test:py": "uv run pytest packages/fbcnn-py"
+  }
+}
+
