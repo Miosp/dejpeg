@@ -42,9 +42,14 @@
       return;
     }
     modelLoading = true;
-    void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`).then(() => {
-      void inference.loadModel(modelId).finally(() => { modelLoading = false; });
-    });
+    void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`)
+      .then(() => inference.loadModel(modelId))
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : String(e);
+        toasts.push(`Model failed to load: ${message}`, "error");
+        engine.errorMessage = message;
+      })
+      .finally(() => { modelLoading = false; });
   });
 
   // Keyboard shortcuts: 0=fit, 1=actual, +/-=zoom, space=toggle original,

@@ -88,12 +88,21 @@ class LSCA(nn.Module):
 
     def __init__(self, channels: int, window: int = 32):
         super().__init__()
-        self.pool = nn.AvgPool2d(window, stride=window, ceil_mode=True, count_include_pad=False)
+        # Floor-division pooling only: ceil_mode=True with dynamic H/W exports
+        # a ceil() into the ONNX shape math, which onnxruntime-web cannot
+        # evaluate. forward() reproduces ceil_mode=True + count_include_pad
+        # =False exactly via a static pad and a valid-count denominator.
+        self.pool = nn.AvgPool2d(window, stride=window)
+        self.window = window
         self.conv = nn.Conv2d(channels, channels, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
-        p = F.interpolate(self.conv(self.pool(x)), size=(h, w), mode="nearest")
+        pad = self.window - 1
+        xp = F.pad(x, (0, pad, 0, pad))
+        mask = F.pad(torch.ones_like(x), (0, pad, 0, pad))
+        pooled = self.pool(xp) / self.pool(mask)
+        p = F.interpolate(self.conv(pooled), size=(h, w), mode="nearest")
         return x * p
 
 

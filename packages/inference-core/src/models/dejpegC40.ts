@@ -8,12 +8,14 @@ export const dejpegC40: ModelDef = {
   description:
     "Compact residual U-Net (2.6M params) trained for JPEG quality 40. Tile-invariant, no quality input needed.",
   task: "jpeg-artifact-removal",
-  url: "/models/dejpeg-c40.onnx?v=v1.0.0",
-  sizeBytes: 5_372_349,
+  url: "/models/dejpeg-c40.onnx?v=v1.0.1",
+  sizeBytes: 5_383_745,
   channels: 3,
-  // Four stride-2 convs -> tile size must be a multiple of 2^4 = 16.
-  // Tile origins should additionally land on multiples of 32 for exact LSCA
-  // window alignment; the default 512/64 overlap keeps the main grid there.
+  // Four stride-2 convs -> tile size must be a multiple of 2^4 = 16. Any
+  // multiple works: the LSCA attention pools export as floor-division with
+  // static pads (ceil_mode would put a ceil() into the ONNX shape math,
+  // which onnxruntime-web cannot evaluate), so partial edge windows at any
+  // grid depth are handled exactly.
   alignment: 16,
   tileSizeDefault: 512,
   inputs: {

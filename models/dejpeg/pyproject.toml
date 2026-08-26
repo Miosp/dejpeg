@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 train = ["lpips"]
-export = ["onnx", "onnxsim", "onnxconverter-common"]
+export = ["onnx", "onnxscript", "onnxsim", "onnxconverter-common", "onnxruntime"]
 eval = ["pyiqa"]
 dev = ["pytest", "ruff"]
 

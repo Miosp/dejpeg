@@ -1,8 +1,9 @@
 """Architecture invariants: identity-at-init, parameter count, fusion parity."""
 import pytest
 import torch
+import torch.nn.functional as F
 
-from dejpeg.model import DeJPEGNet
+from dejpeg.model import DeJPEGNet, LSCA
 
 SHIPPED_PARAMS = 2_629_163  # c0=40 -- locks the architecture to the shipped checkpoint
 
@@ -47,3 +48,28 @@ def test_grad_checkpoint_matches_plain_path(c0):
     ckpted(x).sum().backward()
     for n, pa, pb in zip(plain.state_dict(), plain.parameters(), ckpted.parameters(), strict=True):
         torch.testing.assert_close(pa.grad, pb.grad, msg=lambda m, name=n: f"{name}: {m}")
+
+
+class _CeilModeLSCA(torch.nn.Module):
+    """Pre-deploy reference: the exact pooling semantics the shipped weights
+    were trained under (ceil_mode=True, count_include_pad=False)."""
+
+    def __init__(self, channels: int, window: int = 32):
+        super().__init__()
+        self.pool = torch.nn.AvgPool2d(window, stride=window, ceil_mode=True, count_include_pad=False)
+        self.conv = torch.nn.Conv2d(channels, channels, 1)
+
+    def forward(self, x):
+        h, w = x.shape[-2:]
+        return x * F.interpolate(self.conv(self.pool(x)), size=(h, w), mode="nearest")
+
+
+@pytest.mark.parametrize("h,w", [(96, 96), (37, 100), (16, 16), (33, 65), (100, 37)])
+def test_lsca_matches_ceil_mode_reference(h, w):
+    torch.manual_seed(0)
+    new = LSCA(channels=4, window=32).eval()
+    ref = _CeilModeLSCA(4, 32).eval()
+    ref.load_state_dict(new.state_dict())
+    x = torch.rand(2, 4, h, w)
+    with torch.no_grad():
+        torch.testing.assert_close(new(x), ref(x))
