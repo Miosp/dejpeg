@@ -4,7 +4,7 @@ import { encode } from "../codec/encode.js";
 import { processImage, type ProcessImageOpts } from "../pipeline/pipeline.js";
 import { EngineEnv } from "../pipeline/runtime.js";
 import { settleTileSize } from "../pipeline/sizing.js";
-import { UnknownError, type ModelError } from "../errors.js";
+import { Cancelled, UnknownError, type ModelError } from "../errors.js";
 import type { ModelDef } from "../models/types.js";
 import {
   type ClientInbound,
@@ -17,6 +17,9 @@ import {
 } from "./protocol.js";
 import { ProgressBatcher } from "./ProgressBatcher.js";
 import type { HostDependencies, HostOpts } from "./dependencies.js";
+
+const DEBUG_LOG =
+  typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
 
 interface TileSizeCache {
   get(key: string): number | undefined;
@@ -76,6 +79,14 @@ export class Host {
           break;
       }
     } catch (e) {
+      // A cancelled run is not an error: the client already rejected the
+      // pending promise locally. Restore "ready" so the next process call
+      // is not blocked by a stale error state.
+      if (e instanceof Cancelled) {
+        this.activeItem = null;
+        this.setState("ready");
+        return;
+      }
       const error =
         e instanceof Error ? e : new UnknownError({ message: String(e) });
       const itemId = "itemId" in msg ? msg.itemId : null;
@@ -100,7 +111,9 @@ export class Host {
       this.emit({ kind: "model", modelId, stage: "fetch", loaded, total });
     });
 
-    console.log(`[host] Model loaded: ${def.url} → ${(bytes.byteLength / 1e6).toFixed(1)} MB (${bytes.byteLength > 200_000_000 ? "FP32" : "FP16"})`);
+    if (DEBUG_LOG) {
+      console.log(`[host] Model loaded: ${def.url} → ${(bytes.byteLength / 1e6).toFixed(1)} MB (${bytes.byteLength > 200_000_000 ? "FP32" : "FP16"})`);
+    }
 
     this.emit({
       kind: "model",
@@ -140,9 +153,11 @@ export class Host {
     const t0 = performance.now();
     this.emit({ kind: "image", itemId: msg.itemId, stage: "decode" });
     const decoded = await decode(msg.file, def.channels);
-    console.info(
-      `[host] decode ${decoded.width}x${decoded.height} in ${(performance.now() - t0).toFixed(0)}ms`,
-    );
+    if (DEBUG_LOG) {
+      console.info(
+        `[host] decode ${decoded.width}x${decoded.height} in ${(performance.now() - t0).toFixed(0)}ms`,
+      );
+    }
 
     const pipelineOpts: ProcessImageOpts = {};
     if (msg.tileSizeOverride !== undefined) {
@@ -153,6 +168,7 @@ export class Host {
       pipelineOpts.tileSizeOverride = this.settledTileSize;
     }
     if (msg.tileBatch !== undefined) pipelineOpts.tileBatch = msg.tileBatch;
+    pipelineOpts.signal = this.activeItem!.signal;
     const params = (msg.params ?? {}) as Record<string, number | string | boolean>;
 
     const program = processImage(
@@ -175,7 +191,9 @@ export class Host {
     const result = await Effect.runPromise(
       Effect.provideService(program, EngineEnv, { engine: this.deps.engine }),
     );
-    console.info(`[host] pipeline (tiles+blend) in ${(performance.now() - tInf).toFixed(0)}ms`);
+    if (DEBUG_LOG) {
+      console.info(`[host] pipeline (tiles+blend) in ${(performance.now() - tInf).toFixed(0)}ms`);
+    }
 
     this.emit({ kind: "image", itemId: msg.itemId, stage: "encode" });
     const encoded = await encode(
@@ -187,7 +205,9 @@ export class Host {
       },
       { format: "png" },
     );
-    console.info(`[host] encode in ${(performance.now() - tInf).toFixed(0)}ms (cumulative)`);
+    if (DEBUG_LOG) {
+      console.info(`[host] encode in ${(performance.now() - tInf).toFixed(0)}ms (cumulative)`);
+    }
 
     const elapsedMs = performance.now() - t0;
     this.emit({ kind: "image", itemId: msg.itemId, stage: "finalize" });

@@ -40,7 +40,7 @@
       ⓘ
     </button>
     {#if infoOpen}
-      <div class="info-popout" onclick={(e) => e.stopPropagation()}>
+      <div class="info-popout">
         {#if active}
           <div class="info-row">
             <span class="info-label">File</span>

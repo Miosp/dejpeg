@@ -49,6 +49,9 @@ export interface OnnxEngineOptions {
   preferBackend?: ReadonlyArray<Backend> | undefined;
 }
 
+const DEBUG_LOG =
+  typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
+
 export class OnnxEngine implements InferenceEngine {
   private readonly preferBackend: ReadonlyArray<Backend>;
   private _backend: Backend;
@@ -70,6 +73,12 @@ export class OnnxEngine implements InferenceEngine {
     // The `as string` cast sidesteps TS module resolution; the package is an
     // optional peer dependency and may not be installed at type-check time.
     this.ort = (await import("onnxruntime-web" as string)) as unknown as ORTModule;
+
+    // "error" hides the noisy per-session EP-assignment warnings; they are
+    // expected (shape ops are deliberately CPU-assigned) and carry no signal.
+    if (this.ort.env?.logLevel) {
+      (this.ort.env as { logLevel: string }).logLevel = "error";
+    }
 
     // Configure WASM threads before creating any session. Without this ORT
     // defaults to single-threaded, which is 4-8x slower on multi-core CPUs.
@@ -96,9 +105,11 @@ export class OnnxEngine implements InferenceEngine {
         this.session = await this.ort.InferenceSession.create(buf, {
           executionProviders: [backend],
         });
-        console.info(
-          `[engine] session created on "${backend}" in ${(performance.now() - t0).toFixed(0)}ms`,
-        );
+        if (DEBUG_LOG) {
+          console.info(
+            `[engine] session created on "${backend}" in ${(performance.now() - t0).toFixed(0)}ms`,
+          );
+        }
         this._backend = backend;
         if (backend === "wasm") {
           console.warn(
@@ -134,9 +145,11 @@ export class OnnxEngine implements InferenceEngine {
 
     const t0 = performance.now();
     const out = await this.session.run(ortFeeds);
-    console.info(
-      `[engine] run ${this._backend} [${Object.values(ortFeeds).map((t) => t.dims.join("x")).join(",")}] ${(performance.now() - t0).toFixed(1)}ms`,
-    );
+    if (DEBUG_LOG) {
+      console.info(
+        `[engine] run ${this._backend} [${Object.values(ortFeeds).map((t) => t.dims.join("x")).join(",")}] ${(performance.now() - t0).toFixed(1)}ms`,
+      );
+    }
 
     const result: Record<string, Tensor> = {};
     for (const [name, t] of Object.entries(out)) {

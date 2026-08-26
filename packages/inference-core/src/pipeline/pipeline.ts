@@ -7,6 +7,7 @@ import type { Tensor } from "../engine/types.js";
 import type { InputBinding, ModelDef } from "../models/types.js";
 import {
   CanvasCapExceeded,
+  Cancelled,
   InvalidOutput,
   type ModelError,
 } from "../errors.js";
@@ -61,6 +62,8 @@ export interface ProcessImageOpts {
   tileSizeOverride?: number;
   /** Overrides TILE_BATCH for this run. */
   tileBatch?: number;
+  /** Abort signal, checked between tiles and before blend/encode. */
+  signal?: AbortSignal;
 }
 
 export function processImage(
@@ -87,6 +90,12 @@ export function processImage(
 
     const tileSize = opts?.tileSizeOverride ?? (yield* settleTileSize(engine, def));
     const overlap = Math.max(8, tileSize >> 3);
+    const signal = opts?.signal;
+    const checkAborted = Effect.gen(function* () {
+      if (signal?.aborted) {
+        return yield* Effect.fail(new Cancelled({ id: input.itemId }));
+      }
+    });
 
     const plan = computePlan(
       input.image.width,
@@ -172,6 +181,7 @@ export function processImage(
     const tileOutputs = yield* Stream.fromIterable(chunks).pipe(
       Stream.mapEffect((chunk) =>
         Effect.gen(function* () {
+          yield* checkAborted;
           const t0 = performance.now();
           const outputs = yield* runChunk(chunk).pipe(
             // A batched run holds batchSize times the per-tile activations;
@@ -210,6 +220,7 @@ export function processImage(
       ),
     );
 
+    yield* checkAborted;
     sink({ kind: "image", itemId: input.itemId, stage: "blend" });
     const tileMap = new Map<number, Float32Array>(Array.from(tileOutputs));
     const accumulated = combineTiles(plan, input.image.channels, tileMap);

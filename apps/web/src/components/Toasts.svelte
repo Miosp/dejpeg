@@ -5,9 +5,9 @@
 {#if toasts.toasts.length > 0}
   <div class="toasts">
     {#each toasts.toasts as t (t.id)}
-      <div class="toast toast-{t.kind}" onclick={() => toasts.dismiss(t.id)}>
+      <button class="toast toast-{t.kind}" onclick={() => toasts.dismiss(t.id)}>
         {t.message}
-      </div>
+      </button>
     {/each}
   </div>
 {/if}
@@ -25,6 +25,7 @@
   }
   .toast {
     padding: 10px 16px;
+    border: none;
     border-radius: var(--radius);
     background: var(--bg-panel);
     backdrop-filter: blur(12px);
@@ -32,6 +33,9 @@
     pointer-events: auto;
     cursor: pointer;
     max-width: 400px;
+    font: inherit;
+    color: inherit;
+    text-align: left;
   }
   .toast-error { border-left: 3px solid var(--badge-error); }
   .toast-success { border-left: 3px solid var(--badge-done); }

@@ -5,9 +5,9 @@
   import ProgressTopBar from "./ProgressTopBar.svelte";
   import ErrorOverlay from "./ErrorOverlay.svelte";
 
-  let canvas: HTMLCanvasElement;
-  let canvasB: HTMLCanvasElement;
-  let container: HTMLDivElement;
+  let canvas = $state<HTMLCanvasElement | null>(null);
+  let canvasB = $state<HTMLCanvasElement | null>(null);
+  let container = $state<HTMLDivElement | null>(null);
 
   let active = $derived(queue.active);
   let original = $derived(active?.original);
@@ -271,7 +271,7 @@
 
 <svelte:window onmouseup={onMouseUp} onkeydown={onKeyDown} onkeyup={onKeyUp} />
 
-<div class="stage" bind:this={container} ondragover={onDragOver} ondragleave={onDragLeave} ondrop={onDrop} class:drag-over={dragOver}>
+<div class="stage" role="region" aria-label="Image canvas — drop images here to add them to the queue" bind:this={container} ondragover={onDragOver} ondragleave={onDragLeave} ondrop={onDrop} class:drag-over={dragOver}>
   <ProgressTopBar />
   <ErrorOverlay />
   {#if ui.compareMode === "split" && hasResult}

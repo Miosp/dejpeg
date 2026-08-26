@@ -168,7 +168,7 @@
   }
 
   // Drag reorder
-  let dragId: string | null = null;
+  let dragId = $state<string | null>(null);
 
   function onDragStart(e: DragEvent, item: QueueItem) {
     dragId = item.id;
@@ -257,7 +257,10 @@
 {#if contextMenu}
   <div
     class="ctx-overlay"
+    role="button"
+    tabindex={-1}
     onclick={closeContextMenu}
+    onkeydown={closeContextMenu}
     oncontextmenu={(e) => {
       e.preventDefault();
       closeContextMenu();

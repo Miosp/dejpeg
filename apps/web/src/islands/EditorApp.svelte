@@ -159,11 +159,15 @@
       queue.update(itemId, { elapsedMs: result.elapsedMs });
       if (original) queue.update(itemId, { original });
     } catch (e) {
+      if (e instanceof Cancelled) {
+        queue.markCancelled(itemId);
+        toasts.push("Cancelled.", "info");
+        return;
+      }
       let userMessage: string;
       if (e instanceof ImageDecodeError) userMessage = `Could not decode ${(e as ImageDecodeError).filename}.`;
       else if (e instanceof NetworkError) userMessage = `Network error loading model (status ${(e as NetworkError).status ?? "?"}).`;
       else if (e instanceof BackendUnavailable) userMessage = `No suitable backend (${(e as BackendUnavailable).backend}).`;
-      else if (e instanceof Cancelled) userMessage = "Cancelled.";
       else if (e instanceof NoModelLoaded) userMessage = "Pick a model first.";
       else userMessage = e instanceof Error ? e.message : String(e);
 
@@ -233,17 +237,5 @@
     position: relative;
     overflow: hidden;
     background: var(--bg-canvas);
-  }
-  @media (max-width: 768px) {
-    .editor-canvas {
-      .settings-panel {
-        position: fixed !important;
-        bottom: 88px !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        border-radius: var(--radius) var(--radius) 0 0;
-      }
-    }
   }
 </style>

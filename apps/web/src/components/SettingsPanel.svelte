@@ -293,7 +293,6 @@
   .accordion-toggle:hover { color: var(--text-primary); }
   .chevron { font-size: 0.625rem; }
   .advanced-body { display: flex; flex-direction: column; gap: 12px; padding-left: 8px; border-left: 2px solid var(--border); }
-  .readonly-value { font-size: 0.8125rem; color: var(--text-primary); text-transform: capitalize; }
   .reset-btn { align-self: flex-start; font-size: 0.6875rem; color: var(--accent); padding: 2px 6px; }
   .reset-btn:hover { text-decoration: underline; }
   .progress-section { padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }

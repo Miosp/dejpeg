@@ -10,9 +10,14 @@
     <div class="error-card">
       <p class="error-icon">!</p>
       <p class="error-msg">{active.errorMessage ?? "Processing failed"}</p>
-      <button class="retry-btn" onclick={() => queue.update(active.id, { phase: "queued", errorMessage: undefined, errorTag: undefined })}>
-        Retry
-      </button>
+      <div class="error-actions">
+        <button class="retry-btn" onclick={() => queue.update(active.id, { phase: "queued", errorMessage: undefined, errorTag: undefined })}>
+          Retry
+        </button>
+        <button class="dismiss-btn" onclick={() => queue.update(active.id, { phase: "cancelled", errorMessage: undefined, errorTag: undefined })}>
+          Dismiss
+        </button>
+      </div>
     </div>
   </div>
 {/if}
@@ -53,4 +58,13 @@
     font-weight: 500;
   }
   .retry-btn:hover { background: var(--accent-hover); }
+  .error-actions { display: flex; gap: 8px; justify-content: center; }
+  .dismiss-btn {
+    padding: 8px 24px;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .dismiss-btn:hover { color: var(--text-primary); }
 </style>

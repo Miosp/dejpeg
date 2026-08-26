@@ -14,6 +14,7 @@ import { dejpegC40 } from "../src/models/dejpegC40.js";
 import type { ModelDef } from "../src/models/types.js";
 import {
   CanvasCapExceeded,
+  Cancelled,
   InvalidOutput,
   TileFloorExceeded,
 } from "../src/index.js";
@@ -331,4 +332,55 @@ test("tile batching falls back to single runs when the batched run OOMs", async 
   for (const c of engine.calls.slice(1)) {
     expect(c.feeds.input.shape[0]).toBe(1);
   }
+});
+
+test("pre-aborted signal fails with Cancelled before any tile runs", async () => {
+  const engine = new MockEngine();
+  const controller = new AbortController();
+  controller.abort();
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(128, 128) },
+      dejpegC40,
+      {},
+      () => {},
+      { tileSizeOverride: 512, signal: controller.signal },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Failure");
+  if (exit._tag !== "Failure") return;
+  const cause = exit.cause;
+  expect(cause._tag).toBe("Fail");
+  if (cause._tag !== "Fail") return;
+  expect(cause.error).toBeInstanceOf(Cancelled);
+  expect(engine.calls.length).toBe(0);
+});
+
+test("signal aborted after the first chunk stops the tile loop", async () => {
+  const controller = new AbortController();
+  // Abort as soon as the first chunk reaches the engine.
+  const engine = new class extends MockEngine {
+    async run(feeds: Record<string, Tensor>): Promise<Record<string, Tensor>> {
+      controller.abort();
+      return super.run(feeds);
+    }
+  }();
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(2048, 1024) },
+      dejpegC40,
+      {},
+      () => {},
+      { tileSizeOverride: 512, tileBatch: 1, signal: controller.signal },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Failure");
+  if (exit._tag !== "Failure") return;
+  const cause = exit.cause;
+  if (cause._tag !== "Fail") return;
+  expect(cause.error).toBeInstanceOf(Cancelled);
+  // Only the first chunk ran; the remaining tiles were skipped.
+  expect(engine.calls.length).toBe(1);
 });

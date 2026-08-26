@@ -25,6 +25,9 @@ function crossOriginIsolation() {
 export default defineConfig({
   output: "static",
   adapter: undefined,
+  // The dev toolbar's audit panel re-runs its lints on every DOM update and
+  // floods the console; astro check covers diagnostics in CI instead.
+  devToolbar: { enabled: false },
   integrations: [svelte(), serwist()],
   vite: {
     plugins: [crossOriginIsolation()],
