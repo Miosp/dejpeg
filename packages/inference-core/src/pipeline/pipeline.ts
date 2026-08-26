@@ -44,8 +44,13 @@ export type ProgressSink = (event: {
 
 const BROWSER_CANVAS_CAP_PIXELS = 268_000_000;
 
-/** Tiles merged into one engine.run() batch. 1 disables batching. */
-export const TILE_BATCH = 4;
+/**
+ * Tiles merged into one engine.run() batch. 1 disables batching. Measured on
+ * Intel Xe-LP (gen-12lp): batching 4 tiles is ~2x SLOWER per tile than single
+ * runs (activation spilling on the shared-memory iGPU), so the default is 1.
+ * The machinery stays for GPUs with dedicated VRAM; tune via ProcessImageOpts.
+ */
+export const TILE_BATCH = 1;
 
 /**
  * Full image processing pipeline. Caller supplies the decoded image and a
