@@ -2,19 +2,19 @@ import { test, expect } from "bun:test";
 import { Effect } from "effect";
 import { settleTileSize, TILE_SIZE_MIN, isAllocationFailure } from "../src/pipeline/sizing.js";
 import { MockEngine } from "../src/engine/mock.js";
-import { fbcnnColorReal } from "../src/models/fbcnnColorReal.js";
+import { dejpegC40 } from "../src/models/dejpegC40.js";
 import { TileFloorExceeded } from "../src/errors.js";
 
 test("settleTileSize returns default when probe succeeds first try", async () => {
   const e = new MockEngine();
-  const size = await Effect.runPromise(settleTileSize(e, fbcnnColorReal));
+  const size = await Effect.runPromise(settleTileSize(e, dejpegC40));
   expect(size).toBe(512);
 });
 
 test("settleTileSize shrinks when default size OOMs", async () => {
   // Fail at 512 and 256; pass at 128.
   const e = new MockEngine({ failAtTileSizes: [512, 256] });
-  const size = await Effect.runPromise(settleTileSize(e, fbcnnColorReal));
+  const size = await Effect.runPromise(settleTileSize(e, dejpegC40));
   expect(size).toBe(128);
 });
 
@@ -27,7 +27,7 @@ test("settleTileSize fails with TileFloorExceeded when floor still OOMs", async 
       return err;
     },
   });
-  const result = await Effect.runPromiseExit(settleTileSize(e, fbcnnColorReal));
+  const result = await Effect.runPromiseExit(settleTileSize(e, dejpegC40));
   expect(result._tag).toBe("Failure");
   if (result._tag === "Failure") {
     const cause = result.cause;

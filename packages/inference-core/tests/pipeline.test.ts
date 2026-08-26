@@ -10,7 +10,7 @@ import {
   makeEngineEnv,
 } from "../src/pipeline/runtime.js";
 import { MockEngine } from "../src/engine/mock.js";
-import { fbcnnColorReal } from "../src/models/fbcnnColorReal.js";
+import { dejpegC40 } from "../src/models/dejpegC40.js";
 import {
   CanvasCapExceeded,
   InvalidOutput,
@@ -38,10 +38,10 @@ function run(
   image: PipelineInput["image"],
   engine: MockEngine,
   events: Parameters<ProgressSink>[0][],
-  params: Record<string, number | string | boolean> = { qf: 40 },
+  params: Record<string, number | string | boolean> = {},
 ) {
   return Effect.runPromiseExit(
-    processImage({ itemId: "x", image }, fbcnnColorReal, params, (e) =>
+    processImage({ itemId: "x", image }, dejpegC40, params, (e) =>
       events.push(e),
     ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
   );
@@ -207,8 +207,8 @@ test("tileSizeOverride bypasses the settleTileSize probe", async () => {
   const exit = await Effect.runPromiseExit(
     processImage(
       { itemId: "x", image: makeSyntheticImage(64, 64) },
-      fbcnnColorReal,
-      { qf: 40 },
+      dejpegC40,
+      {},
       (e) => events.push(e),
       { tileSizeOverride: 32 },
     ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
@@ -228,8 +228,8 @@ test("tileSizeOverride absent keeps existing probe behavior", async () => {
   const exit = await Effect.runPromiseExit(
     processImage(
       { itemId: "x", image: makeSyntheticImage(64, 64) },
-      fbcnnColorReal,
-      { qf: 40 },
+      dejpegC40,
+      {},
       (e) => events.push(e),
     ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
   );

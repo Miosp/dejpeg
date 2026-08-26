@@ -3,7 +3,7 @@ import { Host } from "../../src/host/Host.js";
 import type { HostDependencies, ModelSource } from "../../src/host/dependencies.js";
 import { MockEngine } from "../../src/engine/mock.js";
 import { OffscreenCanvasPool } from "../../src/host/OffscreenCanvasPool.js";
-import { fbcnnColorReal } from "../../src/models/fbcnnColorReal.js";
+import { dejpegC40 } from "../../src/models/dejpegC40.js";
 import type { HostOutbound } from "../../src/host/protocol.js";
 
 const STUB_BYTES = new Uint8Array(0);
@@ -42,9 +42,9 @@ describe("Host", () => {
   it("handles load-model by initializing the engine and emitting ready state", async () => {
     const captured: HostOutbound[] = [];
     const deps = makeMockDeps(captured);
-    const host = new Host({ deps, availableModels: [fbcnnColorReal] });
+    const host = new Host({ deps, availableModels: [dejpegC40] });
 
-    await host.handle({ kind: "load-model", modelId: "fbcnn-color-real" });
+    await host.handle({ kind: "load-model", modelId: "dejpeg-c40" });
 
     const states = captured.filter((m) => m.kind === "state");
     expect(
@@ -56,16 +56,16 @@ describe("Host", () => {
     const ready = states.find(
       (s) => s.kind === "state" && s.state === "ready",
     ) as Extract<HostOutbound, { kind: "state" }>;
-    expect(ready.modelId).toBe("fbcnn-color-real");
+    expect(ready.modelId).toBe("dejpeg-c40");
     expect(ready.backend).toBe("wasm");
   });
 
   it("handles process by decoding, running pipeline, and emitting result", async () => {
     const captured: HostOutbound[] = [];
     const deps = makeMockDeps(captured);
-    const host = new Host({ deps, availableModels: [fbcnnColorReal] });
+    const host = new Host({ deps, availableModels: [dejpegC40] });
 
-    await host.handle({ kind: "load-model", modelId: "fbcnn-color-real" });
+    await host.handle({ kind: "load-model", modelId: "dejpeg-c40" });
     captured.length = 0;
 
     const file = await makePngFile(64);
@@ -89,8 +89,8 @@ describe("Host", () => {
   it("emits progress-batch events during process", async () => {
     const captured: HostOutbound[] = [];
     const deps = makeMockDeps(captured);
-    const host = new Host({ deps, availableModels: [fbcnnColorReal] });
-    await host.handle({ kind: "load-model", modelId: "fbcnn-color-real" });
+    const host = new Host({ deps, availableModels: [dejpegC40] });
+    await host.handle({ kind: "load-model", modelId: "dejpeg-c40" });
     captured.length = 0;
 
     const file = await makePngFile(64);
@@ -103,7 +103,7 @@ describe("Host", () => {
   it("emits an error message when an unknown model is requested", async () => {
     const captured: HostOutbound[] = [];
     const deps = makeMockDeps(captured);
-    const host = new Host({ deps, availableModels: [fbcnnColorReal] });
+    const host = new Host({ deps, availableModels: [dejpegC40] });
 
     await host.handle({ kind: "load-model", modelId: "no-such-model" });
 

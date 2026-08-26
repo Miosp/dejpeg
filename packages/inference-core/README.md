@@ -1,6 +1,6 @@
 # inference-core
 
-Framework-free browser inference library for dejpeg. Provides a typed client API for running FBCNN (and future models) on images, with all heavy lifting absorbed into a Web Worker that ships with the package.
+Framework-free browser inference library for dejpeg. Provides a typed client API for running DeJPEGNet and FBCNN models on images, with all heavy lifting absorbed into a Web Worker that ships with the package.
 
 Plan 3 (the Astro/Svelte UI) consumes this package and never touches `effect`, the wire protocol, decode/encode, or tensors.
 

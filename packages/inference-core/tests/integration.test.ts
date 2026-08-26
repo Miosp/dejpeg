@@ -83,9 +83,9 @@ describe("integration: client ↔ host", () => {
   it("full flow: load-model, process, encode", async () => {
     const { client } = makeWiredPair();
 
-    await client.loadModel("fbcnn-color-real");
+    await client.loadModel("dejpeg-c40");
     expect(client.state).toBe("ready");
-    expect(client.modelId).toBe("fbcnn-color-real");
+    expect(client.modelId).toBe("dejpeg-c40");
 
     const file = await makePngFile(64);
     const result = await client.process({ file });
@@ -110,7 +110,7 @@ describe("integration: client ↔ host", () => {
 
   it("concurrent process calls throw ClientBusy on the second", async () => {
     const { client } = makeWiredPair();
-    await client.loadModel("fbcnn-color-real");
+    await client.loadModel("dejpeg-c40");
     const file = await makePngFile(32);
     const first = client.process({ file });
     expect(() => client.process({ file })).toThrow(ClientBusy);
@@ -121,14 +121,14 @@ describe("integration: client ↔ host", () => {
     const { client } = makeWiredPair();
     const snapshots: string[] = [];
     client.subscribe((s) => snapshots.push(s.state));
-    await client.loadModel("fbcnn-color-real");
+    await client.loadModel("dejpeg-c40");
     expect(snapshots).toContain("model-loading");
     expect(snapshots).toContain("ready");
   });
 
   it("abort signal during process rejects with Cancelled", async () => {
     const { client } = makeWiredPair();
-    await client.loadModel("fbcnn-color-real");
+    await client.loadModel("dejpeg-c40");
     const controller = new AbortController();
     const file = await makePngFile(32);
     const promise = client.process({ file, signal: controller.signal });
@@ -139,7 +139,7 @@ describe("integration: client ↔ host", () => {
   it("capabilities are populated after load-model", async () => {
     const { client } = makeWiredPair();
     expect(client.capabilities).toBeNull();
-    await client.loadModel("fbcnn-color-real");
+    await client.loadModel("dejpeg-c40");
     expect(client.capabilities).not.toBeNull();
     expect(client.capabilities!.nativeDecoders).toContain("png");
   });

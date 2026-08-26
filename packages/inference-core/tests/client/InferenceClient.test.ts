@@ -51,19 +51,19 @@ describe("InferenceClient", () => {
   it("loadModel sends a load-model message and resolves on ready", async () => {
     const transport = makeMockTransport();
     const client = createInferenceClient({ transport });
-    const promise = client.loadModel("fbcnn-color-real");
-    expect(transport.inbound).toEqual([{ kind: "load-model", modelId: "fbcnn-color-real" }]);
+    const promise = client.loadModel("dejpeg-c40");
+    expect(transport.inbound).toEqual([{ kind: "load-model", modelId: "dejpeg-c40" }]);
     transport.emit({
       kind: "state",
       state: "ready",
       backend: "wasm",
-      modelId: "fbcnn-color-real",
+      modelId: "dejpeg-c40",
       tileSize: 256,
     });
     await promise;
     expect(client.state).toBe("ready");
     expect(client.backend).toBe("wasm");
-    expect(client.modelId).toBe("fbcnn-color-real");
+    expect(client.modelId).toBe("dejpeg-c40");
     expect(client.tileSize).toBe(256);
   });
 

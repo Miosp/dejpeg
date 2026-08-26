@@ -40,9 +40,9 @@ describe("serializeError", () => {
 
 describe("discriminated unions narrow by kind", () => {
   it("ClientInbound narrows", () => {
-    const m: ClientInbound = { kind: "load-model", modelId: "fbcnn-color-real" };
+    const m: ClientInbound = { kind: "load-model", modelId: "dejpeg-c40" };
     if (m.kind === "load-model") {
-      expect(m.modelId).toBe("fbcnn-color-real");
+      expect(m.modelId).toBe("dejpeg-c40");
     }
   });
 

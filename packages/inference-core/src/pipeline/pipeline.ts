@@ -157,9 +157,10 @@ export function processImage(
       input.image.width * input.image.height,
     );
 
-    // FBCNN output is unbounded (no final sigmoid). The Python reference
-    // clips to [0,1] via np.clip(output, 0, 1). Without this, out-of-range
-    // values produce green/black/white artifacts when cast to uint8.
+    // Restoration output is unbounded (no final sigmoid). The Python
+    // reference clips to [0,1] via np.clip(output, 0, 1). Without this,
+    // out-of-range values produce green/black/white artifacts when cast to
+    // uint8.
     for (let i = 0; i < finalData.length; i++) {
       const v = finalData[i]!;
       finalData[i] = v < 0 ? 0 : v > 1 ? 1 : v;
@@ -199,9 +200,9 @@ function extractTileFeeds(
     } else {
       const value =
         params[binding.param] ?? def.params[binding.param]?.default ?? 0;
-      // FBCNN expects pre-normalized QF: 1 - qf/100 (see original code:
-      // qf_input = torch.tensor([[1 - QF_set/100]])). The qf_embed MLP was
-      // trained on [0, 1] inputs, not raw quality factors.
+      // A "qf" param is fed pre-normalized: 1 - qf/100. Models with a
+      // QF-embedding head are trained on [0, 1] inputs, not raw quality
+      // factors.
       const feedValue = binding.param === "qf"
         ? 1 - Number(value) / 100
         : Number(value);
