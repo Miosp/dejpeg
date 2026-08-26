@@ -143,6 +143,7 @@
         params: engine.getParams(modelDef.id),
         signal: controller.signal,
         tileSizeOverride: engine.tileOverride ?? undefined,
+        tileBatch: engine.batchOverride ?? undefined,
         onProgress: (ev) => {
           if (ev.kind === "image" && ev.stage === "tile" && ev.done !== undefined && ev.total !== undefined) {
             queue.update(itemId, { phase: "inferring", tileProgress: { done: ev.done, total: ev.total } });

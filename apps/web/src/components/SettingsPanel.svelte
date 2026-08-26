@@ -228,6 +228,18 @@
               <button class="reset-btn" onclick={() => { engine.tileOverride = null; }}>Reset to default</button>
             {/if}
           </div>
+          <div class="field">
+            <span class="field-label">Batch Size</span>
+            <div class="range-row">
+              <input type="range" min="1" max="8" step="1"
+                value={engine.batchOverride ?? 1}
+                oninput={(e) => { engine.batchOverride = Number((e.currentTarget as HTMLInputElement).value); }} />
+              <span class="value">{engine.batchOverride ?? 1}</span>
+            </div>
+            {#if engine.batchOverride !== null && engine.batchOverride !== 1}
+              <button class="reset-btn" onclick={() => { engine.batchOverride = null; }}>Reset to default</button>
+            {/if}
+          </div>
         </div>
       {/if}
     </div>

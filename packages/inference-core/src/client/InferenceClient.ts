@@ -24,6 +24,7 @@ export interface ProcessOpts {
   file: File;
   params?: ModelParams;
   tileSizeOverride?: number;
+  tileBatch?: number;
   signal?: AbortSignal;
   onProgress?: (event: ProgressEvent) => void;
   itemId?: string;
@@ -174,6 +175,7 @@ class InferenceClientImpl extends Subscribable<ClientSnapshot> implements Infere
       msg.params = JSON.parse(JSON.stringify(opts.params));
     }
     if (opts.tileSizeOverride !== undefined) msg.tileSizeOverride = opts.tileSizeOverride;
+    if (opts.tileBatch !== undefined) msg.tileBatch = opts.tileBatch;
     this.send(msg);
     return new Promise<ProcessResult>((resolve, reject) => {
       this.pendingProcess = {

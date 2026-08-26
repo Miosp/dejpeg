@@ -5,6 +5,7 @@ class EngineState {
   params = $state<Record<string, Record<string, number | string | boolean>>>({});
   errorMessage = $state<string | null>(null);
   tileOverride = $state<number | null>(null);
+  batchOverride = $state<number | null>(null);
 
   /** Initialise defaults for a model's params if not already set. */
   ensureParamsFor(modelId: ModelId) {

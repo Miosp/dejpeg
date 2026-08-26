@@ -70,6 +70,7 @@ export type ClientInbound =
       file: File;
       params?: Record<string, unknown>;
       tileSizeOverride?: number;
+      tileBatch?: number;
     }
   | { kind: "encode"; itemId: string; bitmap: ImageBitmap; format: EncodeFormat; quality?: number }
   | { kind: "cancel"; itemId: string }

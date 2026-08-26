@@ -152,6 +152,7 @@ export class Host {
       // re-probing from the pipeline on every image.
       pipelineOpts.tileSizeOverride = this.settledTileSize;
     }
+    if (msg.tileBatch !== undefined) pipelineOpts.tileBatch = msg.tileBatch;
     const params = (msg.params ?? {}) as Record<string, number | string | boolean>;
 
     const program = processImage(
