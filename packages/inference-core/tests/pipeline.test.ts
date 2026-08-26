@@ -11,6 +11,7 @@ import {
 } from "../src/pipeline/runtime.js";
 import { MockEngine } from "../src/engine/mock.js";
 import { dejpegC40 } from "../src/models/dejpegC40.js";
+import type { ModelDef } from "../src/models/types.js";
 import {
   CanvasCapExceeded,
   InvalidOutput,
@@ -240,4 +241,37 @@ test("tileSizeOverride absent keeps existing probe behavior", async () => {
 
   const planEvent = events.find((e) => e.stage === "plan");
   expect(planEvent?.total).toBe(1);
+});
+
+test("param binding feeds qf pre-normalized to the engine", async () => {
+  const qfModel: ModelDef = {
+    id: "test-qf",
+    name: "Test QF",
+    description: "",
+    task: "jpeg-artifact-removal",
+    url: "file://test.onnx",
+    sizeBytes: 1,
+    channels: 3,
+    alignment: 1,
+    inputs: { input: "image", qf_input: { param: "qf" } },
+    outputs: [{ name: "output" }],
+    params: {
+      qf: { kind: "range", min: 10, max: 100, step: 1, default: 40, label: "QF", help: "" },
+    },
+  };
+  const engine = new MockEngine();
+  const events: ImageProgress[] = [];
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(32, 32) },
+      qfModel,
+      { qf: 40 },
+      (e) => events.push(e),
+      { tileSizeOverride: 32 },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Success");
+  const feeds = engine.calls[0]!.feeds;
+  expect(feeds.qf_input!.data[0]).toBeCloseTo(0.6, 6);
 });
