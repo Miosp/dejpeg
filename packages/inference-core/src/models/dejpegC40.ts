@@ -1,12 +1,13 @@
 import type { ModelDef } from "./types.js";
 
-// DeJPEGNet v1 (models/dejpeg), c40 checkpoint: trained for JPEG quality 40.
+// DeJPEGNet v1 (models/dejpeg). "c40" = c0=40 base channel width, not a
+// quality factor -- training samples QF 1-100 (see degrade.py sample_qf).
 // Exported via scripts/export_onnx.py --dynamic (FP16 weights, FP32 I/O, opset 18).
 export const dejpegC40: ModelDef = {
   id: "dejpeg-c40",
-  name: "DeJPEGNet v1 · Color (QF 40)",
+  name: "DeJPEGNet v1 · Color",
   description:
-    "Compact residual U-Net (2.6M params) trained for JPEG quality 40. Tile-invariant, no quality input needed.",
+    "Compact residual U-Net (2.6M params) trained across JPEG qualities 1-100 with realistic degradation (chroma subsampling, multi-pass, resizes). Tile-invariant, no quality input needed.",
   task: "jpeg-artifact-removal",
   url: "/models/dejpeg-c40.onnx?v=v1.0.1",
   sizeBytes: 5_383_745,
