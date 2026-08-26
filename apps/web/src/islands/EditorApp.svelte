@@ -30,18 +30,21 @@
   // progress tracking, then lets the worker load from browser cache.
   $effect(() => {
     const modelId = persistedModelId.value;
-    if (!modelId) return;
+    if (!modelId) {
+      persistedModelId.value = MODELS[0]!.id;
+      return;
+    }
     if (modelLoading) return;
     if (snapshot.modelId === modelId && snapshot.state === "ready") return;
-    modelLoading = true;
     const modelDef = MODELS.find((m) => m.id === modelId);
-    if (modelDef) {
-      void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`).then(() => {
-        void inference.loadModel(modelId).finally(() => { modelLoading = false; });
-      });
-    } else {
-      void inference.loadModel(modelId).finally(() => { modelLoading = false; });
+    if (!modelDef) {
+      persistedModelId.value = MODELS[0]!.id;
+      return;
     }
+    modelLoading = true;
+    void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`).then(() => {
+      void inference.loadModel(modelId).finally(() => { modelLoading = false; });
+    });
   });
 
   // Keyboard shortcuts: 0=fit, 1=actual, +/-=zoom, space=toggle original,
