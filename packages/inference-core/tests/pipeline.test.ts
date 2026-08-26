@@ -275,3 +275,60 @@ test("param binding feeds qf pre-normalized to the engine", async () => {
   const feeds = engine.calls[0]!.feeds;
   expect(feeds.qf_input!.data[0]).toBeCloseTo(0.6, 6);
 });
+
+test("tile batching merges tiles into one batched engine run", async () => {
+  const engine = new MockEngine();
+  const events: ImageProgress[] = [];
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(1024, 512) },
+      dejpegC40,
+      {},
+      (e) => events.push(e),
+      { tileSizeOverride: 512, tileBatch: 8 },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Success");
+  if (exit._tag !== "Success") return;
+  expect(exit.value.data.length).toBe(3 * 1024 * 512);
+
+  // 1024x512 at tile 512 / overlap 64 -> 3 tiles; batch 8 covers them in one run.
+  expect(engine.calls.length).toBe(1);
+  expect(engine.calls[0]!.feeds.input.shape).toEqual([3, 3, 512, 512]);
+
+  const tileEvents = events.filter((e) => e.stage === "tile");
+  expect(tileEvents.map((e) => e.done)).toEqual([1, 2, 3]);
+});
+
+test("tile batching falls back to single runs when the batched run OOMs", async () => {
+  // OOM only the batched shape [3,...]: fail when input batch > 1.
+  const engine = new MockEngine({
+    failWith: (feeds) => {
+      if (feeds.input.shape[0]! > 1) {
+        const err = new Error("simulated batch OOM") as Error & { _tag: string };
+        err._tag = "TileAllocationFailure";
+        return err;
+      }
+      return undefined;
+    },
+  });
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(1024, 512) },
+      dejpegC40,
+      {},
+      () => {},
+      { tileSizeOverride: 512, tileBatch: 8 },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Success");
+  if (exit._tag !== "Success") return;
+  expect(exit.value.data.length).toBe(3 * 1024 * 512);
+  // 1 failed batched attempt + 3 single-tile runs.
+  expect(engine.calls.length).toBe(4);
+  for (const c of engine.calls.slice(1)) {
+    expect(c.feeds.input.shape[0]).toBe(1);
+  }
+});

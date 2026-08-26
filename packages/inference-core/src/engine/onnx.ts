@@ -92,10 +92,13 @@ export class OnnxEngine implements InferenceEngine {
         ) {
           throw new Error("navigator.gpu unavailable — browser does not support WebGPU");
         }
+        const t0 = performance.now();
         this.session = await this.ort.InferenceSession.create(buf, {
           executionProviders: [backend],
-          freeDimensionOverrides: { batch: 1 },
         });
+        console.info(
+          `[engine] session created on "${backend}" in ${(performance.now() - t0).toFixed(0)}ms`,
+        );
         this._backend = backend;
         if (backend === "wasm") {
           console.warn(
@@ -129,7 +132,11 @@ export class OnnxEngine implements InferenceEngine {
       ortFeeds[name] = new this.ort.Tensor("float32", t.data, [...t.shape]);
     }
 
+    const t0 = performance.now();
     const out = await this.session.run(ortFeeds);
+    console.info(
+      `[engine] run ${this._backend} [${Object.values(ortFeeds).map((t) => t.dims.join("x")).join(",")}] ${(performance.now() - t0).toFixed(1)}ms`,
+    );
 
     const result: Record<string, Tensor> = {};
     for (const [name, t] of Object.entries(out)) {

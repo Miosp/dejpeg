@@ -1,6 +1,6 @@
-import { Effect, Stream } from "effect";
+import { Chunk, Effect, Stream } from "effect";
 import { EngineEnv } from "./runtime.js";
-import { settleTileSize } from "./sizing.js";
+import { settleTileSize, isAllocationFailure } from "./sizing.js";
 import { computePlan, type Tile, type TilePlan } from "../tiling/slicer.js";
 import { combineTiles, finalizeBlend } from "../tiling/blender.js";
 import type { Tensor } from "../engine/types.js";
@@ -44,6 +44,9 @@ export type ProgressSink = (event: {
 
 const BROWSER_CANVAS_CAP_PIXELS = 268_000_000;
 
+/** Tiles merged into one engine.run() batch. 1 disables batching. */
+export const TILE_BATCH = 4;
+
 /**
  * Full image processing pipeline. Caller supplies the decoded image and a
  * sink for progress events; the pipeline settles tile size, runs the tile
@@ -51,6 +54,8 @@ const BROWSER_CANVAS_CAP_PIXELS = 268_000_000;
  */
 export interface ProcessImageOpts {
   tileSizeOverride?: number;
+  /** Overrides TILE_BATCH for this run. */
+  tileBatch?: number;
 }
 
 export function processImage(
@@ -91,61 +96,113 @@ export function processImage(
       total: plan.tiles.length,
     });
 
-    const tileOutputs = yield* Stream.fromIterable(plan.tiles).pipe(
-      Stream.zipWithIndex,
-      Stream.mapEffect(([tile, i]) =>
-        Effect.gen(function* () {
-          const t0 = performance.now();
-          const feeds = extractTileFeeds(input.image, tile, def, params);
-          const outputs = yield* Effect.tryPromise({
-            try: () => engine.run(feeds),
-            catch: (e): ModelError => e as unknown as ModelError,
-          });
-          const out = outputs["output"];
-          if (i === 0) {
-            const qfOut = outputs["qf_predicted"];
-            if (qfOut && qfOut.data.length > 0) {
-              qfPredicted = Math.round(qfOut.data[0]! * 100);
-            }
+    /**
+     * Run one chunk of tiles through the engine as a single batched
+     * forward pass, splitting the batched output back into per-tile rows.
+     */
+    const runChunk = (
+      chunk: ReadonlyArray<Tile>,
+    ): Effect.Effect<ReadonlyArray<readonly [number, Float32Array]>, ModelError> =>
+      Effect.gen(function* () {
+        const feeds = extractBatchedFeeds(input.image, chunk, def, params);
+        const outputs = yield* Effect.tryPromise({
+          try: () => engine.run(feeds),
+          catch: (e): ModelError => e as unknown as ModelError,
+        });
+        const out = outputs["output"];
+        const first = chunk[0]!;
+        if (first.index === 0) {
+          const qfOut = outputs["qf_predicted"];
+          if (qfOut && qfOut.data.length > 0) {
+            qfPredicted = Math.round(qfOut.data[0]! * 100);
           }
-          if (!out) {
+        }
+        if (!out) {
+          return yield* Effect.fail(
+            new InvalidOutput({
+              modelId: def.id,
+              reason: "shape",
+              details: "engine returned no 'output' tensor",
+            }),
+          );
+        }
+        const per = def.channels * first.h * first.w;
+        for (const v of out.data) {
+          if (!Number.isFinite(v)) {
             return yield* Effect.fail(
-              new InvalidOutput({
-                modelId: def.id,
-                reason: "shape",
-                details: "engine returned no 'output' tensor",
-              }),
+              new InvalidOutput({ modelId: def.id, reason: "nan" }),
             );
           }
-          for (const v of out.data) {
-            if (!Number.isFinite(v)) {
-              return yield* Effect.fail(
-                new InvalidOutput({ modelId: def.id, reason: "nan" }),
-              );
-            }
-          }
-          // Diagnostic: save first tile's raw model output for debugging.
-          if (i === 0) {
-            const tileCopy = out.data.slice();
+        }
+        if (out.data.length !== chunk.length * per) {
+          return yield* Effect.fail(
+            new InvalidOutput({
+              modelId: def.id,
+              reason: "shape",
+              details: `expected [${chunk.length},${def.channels},${first.h},${first.w}] output, got [${out.shape.join(",")}]`,
+            }),
+          );
+        }
+        const results: Array<readonly [number, Float32Array]> = [];
+        for (let j = 0; j < chunk.length; j++) {
+          const slice = out.data.subarray(j * per, (j + 1) * per);
+          if (first.index === 0 && j === 0) {
             (globalThis as Record<string, unknown>).__debugTileOutput = {
-              data: tileCopy,
+              data: slice.slice(),
               shape: [...out.shape],
-              inputShape: [1, def.channels, tile.h, tile.w],
+              inputShape: [chunk.length, def.channels, first.h, first.w],
             };
           }
-          const ms = performance.now() - t0;
-          sink({
-            kind: "image",
-            itemId: input.itemId,
-            stage: "tile",
-            done: i + 1,
-            total: plan.tiles.length,
-            ms,
-          });
-          return [tile.index, out.data] as const;
+          results.push([chunk[j]!.index, slice as Float32Array]);
+        }
+        return results;
+      });
+
+    const batchSize = Math.max(1, opts?.tileBatch ?? TILE_BATCH);
+    const chunks: Tile[][] = [];
+    for (let i = 0; i < plan.tiles.length; i += batchSize) {
+      chunks.push(plan.tiles.slice(i, i + batchSize));
+    }
+
+    const tileOutputs = yield* Stream.fromIterable(chunks).pipe(
+      Stream.mapEffect((chunk) =>
+        Effect.gen(function* () {
+          const t0 = performance.now();
+          const outputs = yield* runChunk(chunk).pipe(
+            // A batched run holds batchSize times the per-tile activations;
+            // when the device refuses the allocation, retry the chunk one
+            // tile at a time (the size settleTileSize approved).
+            Effect.catchIf(
+              (e) => isAllocationFailure(e),
+              () =>
+                Effect.gen(function* () {
+                  const singles: Array<readonly [number, Float32Array]> = [];
+                  for (const tile of chunk) {
+                    singles.push(...(yield* runChunk([tile])));
+                  }
+                  return singles;
+                }),
+            ),
+          );
+          const ms = (performance.now() - t0) / chunk.length;
+          for (const [index] of outputs) {
+            sink({
+              kind: "image",
+              itemId: input.itemId,
+              stage: "tile",
+              done: index + 1,
+              total: plan.tiles.length,
+              ms,
+            });
+          }
+          return outputs;
         }),
       ),
       Stream.runCollect,
+    ).pipe(
+      Effect.map((chunkResults) =>
+        Chunk.toReadonlyArray(chunkResults).flat(),
+      ),
     );
 
     sink({ kind: "image", itemId: input.itemId, stage: "blend" });
@@ -238,6 +295,33 @@ function extractImageTile(
     }
   }
   return { data: tileData, shape: [1, channels, tile.h, tile.w] };
+}
+
+/**
+ * Build one feeds map for a whole chunk: per-tile tensors concatenated along
+ * a new leading batch axis ([B,C,H,W] for image bindings, [B,1] for scalar
+ * params). A single-tile chunk skips the copy and reuses the per-tile feeds.
+ */
+function extractBatchedFeeds(
+  image: PipelineInput["image"],
+  chunk: ReadonlyArray<Tile>,
+  def: ModelDef,
+  params: Record<string, number | string | boolean>,
+): Record<string, Tensor> {
+  if (chunk.length === 1) {
+    return extractTileFeeds(image, chunk[0]!, def, params);
+  }
+  const perTile = chunk.map((t) => extractTileFeeds(image, t, def, params));
+  const feeds: Record<string, Tensor> = {};
+  for (const name of Object.keys(perTile[0]!)) {
+    const first = perTile[0]![name]!;
+    const data = new Float32Array(first.data.length * chunk.length);
+    for (let j = 0; j < chunk.length; j++) {
+      data.set(perTile[j]![name]!.data, j * first.data.length);
+    }
+    feeds[name] = { data, shape: [chunk.length, ...first.shape.slice(1)] };
+  }
+  return feeds;
 }
 
 export type { TilePlan };

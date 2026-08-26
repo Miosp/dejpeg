@@ -43,6 +43,7 @@ export class Host {
   private readonly deps: HostDependencies;
   private readonly availableModels: readonly ModelDef[];
   private activeModel: ModelDef | null = null;
+  private settledTileSize: number | null = null;
   private readonly batcher: ProgressBatcher;
   private activeItem: AbortController | null = null;
   private capabilities: ClientCapabilities | null = null;
@@ -115,6 +116,7 @@ export class Host {
     if (!this.capabilities) this.capabilities = await this.probeCapabilities();
 
     const tileSize = await this.cachedTileSize(def, this.deps.engine.backend);
+    this.settledTileSize = tileSize;
     this.setState("ready", {
       backend: this.deps.engine.backend,
       modelId,
@@ -138,10 +140,17 @@ export class Host {
     const t0 = performance.now();
     this.emit({ kind: "image", itemId: msg.itemId, stage: "decode" });
     const decoded = await decode(msg.file, def.channels);
+    console.info(
+      `[host] decode ${decoded.width}x${decoded.height} in ${(performance.now() - t0).toFixed(0)}ms`,
+    );
 
     const pipelineOpts: ProcessImageOpts = {};
     if (msg.tileSizeOverride !== undefined) {
       pipelineOpts.tileSizeOverride = msg.tileSizeOverride;
+    } else if (this.settledTileSize !== null) {
+      // Reuse the size settled (and probed) at load-model time instead of
+      // re-probing from the pipeline on every image.
+      pipelineOpts.tileSizeOverride = this.settledTileSize;
     }
     const params = (msg.params ?? {}) as Record<string, number | string | boolean>;
 
@@ -161,9 +170,11 @@ export class Host {
       pipelineOpts,
     );
 
+    const tInf = performance.now();
     const result = await Effect.runPromise(
       Effect.provideService(program, EngineEnv, { engine: this.deps.engine }),
     );
+    console.info(`[host] pipeline (tiles+blend) in ${(performance.now() - tInf).toFixed(0)}ms`);
 
     this.emit({ kind: "image", itemId: msg.itemId, stage: "encode" });
     const encoded = await encode(
@@ -175,6 +186,7 @@ export class Host {
       },
       { format: "png" },
     );
+    console.info(`[host] encode in ${(performance.now() - tInf).toFixed(0)}ms (cumulative)`);
 
     const elapsedMs = performance.now() - t0;
     this.emit({ kind: "image", itemId: msg.itemId, stage: "finalize" });

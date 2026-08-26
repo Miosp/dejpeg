@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<body>
+<script type="module">
+const ort = await import("/@fs/home/miosp/proj/dejpeg/node_modules/.bun/onnxruntime-web@1.27.0/node_modules/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs");
+ort.env.wasm.numThreads = 4;
+
+const adapter = await navigator.gpu.requestAdapter();
+const info = adapter?.info ?? {};
+console.log("ADAPTER " + JSON.stringify({ vendor: info.vendor, architecture: info.architecture, device: info.device }));
+if (!adapter) { console.log("BENCH DONE no-adapter"); throw new Error("no webgpu adapter"); }
+
+const params = new URLSearchParams(location.search);
+const modelPath = params.get("model") ?? "/models/dejpeg-c40.onnx";
+const N = Number(params.get("n") ?? 8);
+const HW = Number(params.get("hw") ?? 512);
+const B = Number(params.get("batch") ?? 1);
+
+const bytes = new Uint8Array(await (await fetch(modelPath)).arrayBuffer());
+const t0 = performance.now();
+const sess = await ort.InferenceSession.create(bytes, { executionProviders: ["webgpu"] });
+console.log(`SESSION create ${(performance.now() - t0).toFixed(0)}ms`);
+
+const x = new ort.Tensor("float32", new Float32Array(B * 3 * HW * HW).fill(0.5), [B, 3, HW, HW]);
+for (let i = -1; i < N; i++) {
+  const t = performance.now();
+  await sess.run({ input: x });
+  const ms = performance.now() - t;
+  if (i >= 0) console.log(`RUN ${i} ${ms.toFixed(1)}ms`);
+}
+console.log("BENCH DONE");
+</script>
+</body>
+</html>
