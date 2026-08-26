@@ -5,7 +5,7 @@ import type { ModelDef } from "./types.js";
 // Exported via scripts/export_onnx.py --dynamic (FP16 weights, FP32 I/O, opset 18).
 export const dejpegC40: ModelDef = {
   id: "dejpeg-c40",
-  name: "DeJPEGNet v1 · Color",
+  name: "DeJPEGNet v1",
   description:
     "Compact residual U-Net (2.6M params) trained across JPEG qualities 1-100 with realistic degradation (chroma subsampling, multi-pass, resizes). Tile-invariant, no quality input needed.",
   task: "jpeg-artifact-removal",
