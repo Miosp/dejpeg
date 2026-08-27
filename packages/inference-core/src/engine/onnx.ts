@@ -6,6 +6,9 @@
 import type { Backend, InferenceEngine, Tensor } from "./types.js";
 import { BackendUnavailable } from "../errors.js";
 
+const ORT_WASM_CDN =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/";
+
 // Minimal structural typing over the ORT surface we touch. The real package
 // is declared as an optional peer dependency, so it may be absent at
 // type-check time; the runtime import is dynamic and gated behind init().
@@ -88,6 +91,12 @@ export class OnnxEngine implements InferenceEngine {
         : 4;
       this.ort.env.wasm.numThreads = cores;
       this.ort.env.wasm.proxy = false;
+      // The ORT WASM binary (~26 MiB) exceeds the 25 MiB per-file asset limit
+      // on Cloudflare Workers, so it is dropped from the bundle and fetched
+      // from the CDN instead. jsdelivr serves CORS headers, which satisfies
+      // the page's COEP require-corp policy. Keep in sync with the version
+      // resolved in apps/web's lockfile.
+      this.ort.env.wasm.wasmPaths = ORT_WASM_CDN;
     }
 
     const buf = opts.bytes;

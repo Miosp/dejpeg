@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import * as fs from "node:fs";
 import svelte from "@astrojs/svelte";
 import { serwist } from "./src/service-worker/integration.ts";
 
@@ -22,6 +23,25 @@ function crossOriginIsolation() {
   };
 }
 
+// The ORT WASM binary (~26 MiB) exceeds Cloudflare Workers' 25 MiB per-file
+// asset limit; the engine fetches it from the CDN at runtime instead
+// (env.wasm.wasmPaths in inference-core). Drop it from the build output so
+// deploys are never rejected on file size. closeBundle runs after the worker
+// sub-bundle has written its assets, which generateBundle never sees.
+function dropOrtWasmAssets() {
+  return {
+    name: "drop-ort-wasm-assets",
+    closeBundle() {
+      const dir = "dist/_astro";
+      if (!fs.existsSync(dir)) return;
+      for (const f of fs.readdirSync(dir)) {
+        if (/^ort-wasm.*\.wasm$/.test(f)) fs.unlinkSync(`${dir}/${f}`);
+      }
+    },
+  };
+}
+
+
 export default defineConfig({
   output: "static",
   adapter: undefined,
@@ -30,15 +50,10 @@ export default defineConfig({
   devToolbar: { enabled: false },
   integrations: [svelte(), serwist()],
   vite: {
-    plugins: [crossOriginIsolation()],
+    plugins: [crossOriginIsolation(), dropOrtWasmAssets()],
     worker: { format: "es" },
     optimizeDeps: {
       exclude: ["onnxruntime-web"],
-    },
-    build: {
-      rollupOptions: {
-        external: ["onnxruntime-web"],
-      },
     },
   },
 });

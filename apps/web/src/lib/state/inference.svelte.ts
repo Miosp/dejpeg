@@ -1,9 +1,11 @@
 import {
   createInferenceClient,
   MODELS,
+  WorkerTransport,
   type InferenceClient,
   type ClientSnapshot,
 } from "inference-core";
+import InferenceWorker from "../../workers/inference.worker.ts?worker";
 
 // Lazy singleton: the InferenceClient boots a Worker on construction, which
 // fails outside a browser context. Defer construction until first property
@@ -18,7 +20,7 @@ function getClient(): InferenceClient {
     );
   }
   _client = createInferenceClient({
-    workerURL: new URL("../../workers/inference.worker.ts", import.meta.url),
+    transport: new WorkerTransport(new InferenceWorker()),
     availableModels: MODELS,
   });
   // Mirror the client's snapshot into a $state object so Svelte components

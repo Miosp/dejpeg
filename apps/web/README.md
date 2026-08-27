@@ -12,19 +12,32 @@ Astro + Svelte 5 frontend for dejpeg.
 
 Outputs to `dist/`.
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Workers)
 
-1. Build locally: `bun run --filter web build`
-2. Drag-and-drop `dist/` to Cloudflare Pages, or wire CI to run the build.
-3. The model file (`dejpeg-c40.onnx`, ~5.4MB) is under the 25MB per-file
-   limit and deploys with `dist/`. It must exist in `public/models/` at
-   build time (see [Model file](#model-file) below).
+    cd apps/web
+    bun run build
+    bunx wrangler deploy
+
+Serves static assets from `dist/` on a `*.workers.dev` URL
+(`wrangler.jsonc`). COOP/COEP headers come from `public/_headers`, which
+Workers Static Assets honors. The model file (`dejpeg-c40.onnx`, ~5.4MB)
+must exist in `public/models/` at build time (see
+[Model file](#model-file) below).
+
+Two Workers-specific size notes:
+
+- The 25 MiB per-file asset limit. The ORT WASM binary (~26 MiB) exceeds
+  it, so the build drops the wasm and `inference-core` fetches it from the
+  jsdelivr CDN at runtime (`env.wasm.wasmPaths` in `engine/onnx.ts`).
+  Keep that pinned version in sync with the lockfile.
+- Keep bench artifacts out of `public/models/`; everything in `public/`
+  deploys.
 
 ## Production model hosting
 
-Not required: `dejpeg-c40.onnx` is ~5.4MB, under Cloudflare Pages' 25MB
-per-file limit, so it ships with the build. If a future model exceeds the
-limit, host it on object storage with permissive CORS (e.g. Cloudflare R2:
+Not required: `dejpeg-c40.onnx` is ~5.4MB, under the 25 MiB per-file
+limit, so it ships with the build. If a future model exceeds the limit,
+host it on object storage with permissive CORS (e.g. Cloudflare R2:
 `wrangler r2 bucket create`, upload, enable public access, `wrangler r2
 bucket cors put` with your site's origin) and point the model def's `url`
 at the public bucket URL.
@@ -40,10 +53,9 @@ The file is gitignored. Do not commit it. Generate it with
 
 ## Custom domain
 
-To map a custom domain to the Pages deployment:
+To map a custom domain to the Worker:
 
-1. Cloudflare dashboard → Pages → your project → Custom domains → Set up a custom domain
+1. Cloudflare dashboard → Workers & Pages → dejpeg-web → Settings → Domains & Routes → Add → Custom domain
 2. Enter the domain; Cloudflare auto-provisions SSL
-3. Add the new origin to your bucket's CORS rules and re-apply them
 
 DNS propagation typically takes a few minutes; SSL provisioning up to an hour.
