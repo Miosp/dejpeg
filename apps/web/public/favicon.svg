@@ -6,5 +6,5 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <path fill="#fff" d="M22 16h6v22a10 10 0 1 1-6-9.2V16zm0 28a4 4 0 1 0 6 0 4 4 0 0 0-6 0zm16-28h6v32h-6V16z"/>
+  <text x="32" y="34" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="central" letter-spacing="-1">dj</text>
 </svg>
