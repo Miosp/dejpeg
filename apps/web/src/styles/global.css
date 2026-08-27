@@ -6,6 +6,8 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+  touch-action: manipulation;
+  overscroll-behavior: none;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg-canvas);
   color: var(--text-primary);
