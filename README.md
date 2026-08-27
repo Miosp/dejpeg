@@ -4,6 +4,8 @@ JPEG artifact removal that runs entirely in your browser. Photos never leave
 the device: inference runs client-side via ONNX Runtime Web (WebGPU
 primary, WASM fallback), backed by a compact custom-trained model.
 
+**Try it: <https://dejpeg.ludwina.top>**
+
 ## What's here
 
 | Path | What |
