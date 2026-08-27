@@ -1,9 +1,19 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { ui } from "../lib/state/ui.svelte";
   import { engine, persistedModelId } from "../lib/state/engine.svelte";
   import { snapshot, download, inference } from "../lib/state/inference.svelte";
   import { queue } from "../lib/state/queue.svelte";
   import { MODELS, type ModelParam, type EncodeFormat } from "inference-core";
+
+  let mounted = $state(false);
+
+  onMount(() => {
+    if (window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 768) {
+      ui.settingsCollapsed = true;
+    }
+    mounted = true;
+  });
 
   let def = $derived(MODELS.find((m) => m.id === snapshot.modelId));
   let params = $derived(def ? engine.getParams(def.id) : {});
@@ -99,12 +109,31 @@
   }
 </script>
 
+{#if mounted}
+  {#if ui.settingsCollapsed}
+  <button
+    class="settings-fab"
+    onclick={() => (ui.settingsCollapsed = false)}
+    title="Settings"
+    aria-label="Open settings"
+  >
+    ⚙
+  </button>
+{:else}
 <div class="settings-panel">
   <div class="header">
     <div class="tabs">
       <button class="tab" class:active={ui.settingsTab !== "export"} onclick={() => (ui.settingsTab = "processing")}>Processing</button>
       <button class="tab" class:active={ui.settingsTab === "export"} onclick={() => (ui.settingsTab = "export")}>Export</button>
     </div>
+    <button
+      class="close-btn"
+      onclick={() => (ui.settingsCollapsed = true)}
+      title="Collapse settings"
+      aria-label="Collapse settings"
+    >
+      ✕
+    </button>
   </div>
 
   {#if ui.settingsTab === "export"}
@@ -261,14 +290,34 @@
     </div>
   </div>
 </div>
+{/if}
+{/if}
 
 <style>
   .settings-panel {
-    position: absolute; bottom: 12px; right: 12px; width: 280px; z-index: 20;
+    position: absolute; bottom: calc(12px + env(safe-area-inset-bottom)); right: 12px; width: min(280px, calc(100vw - 24px)); z-index: 20;
     background: var(--bg-panel); backdrop-filter: blur(12px); box-shadow: var(--shadow);
     border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden;
     display: flex; flex-direction: column;
   }
+  .settings-fab {
+    position: absolute; bottom: calc(12px + env(safe-area-inset-bottom)); right: 12px; z-index: 20;
+    width: 44px; height: 44px;
+    border-radius: var(--radius);
+    background: var(--bg-panel); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; color: var(--text-primary);
+    transition: background 0.15s;
+  }
+  .settings-fab:hover { background: var(--bg-panel-hover); }
+  .close-btn {
+    width: 24px; height: 24px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: var(--text-secondary);
+    border-radius: calc(var(--radius) - 2px);
+  }
+  .close-btn:hover { color: var(--text-primary); background: var(--bg-panel-hover); }
   .header { display: flex; align-items: center; justify-content: space-between; padding: 4px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .tabs { display: flex; gap: 2px; }
   .tab { padding: 6px 12px; border-radius: calc(var(--radius) - 2px); font-size: 0.8125rem; color: var(--text-secondary); transition: background 0.15s, color 0.15s; }

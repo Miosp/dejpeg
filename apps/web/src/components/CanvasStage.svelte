@@ -16,6 +16,7 @@
 
   let sliderPos = $state(0.5);
   let sliderDragging = $state(false);
+  let splitStacked = $state(false);
 
   let showOriginal = $derived(
     !hasResult || (ui.compareMode === "toggle" && ui.togglingOriginal)
@@ -24,8 +25,45 @@
   let panning = $state(false);
   let peekingOriginal = $state(false);
   let dragStarted = false;
-  let lastX = 0;
-  let lastY = 0;
+
+  interface ActivePointer {
+    downX: number;
+    downY: number;
+    lastX: number;
+    lastY: number;
+  }
+  const pointers = new Map<number, ActivePointer>();
+  let pinchDist = 0;
+  let suppressTap = false;
+  let lastTap: { x: number; y: number; t: number } | null = null;
+
+  function toLocalX(clientX: number): number {
+    const rect = container?.getBoundingClientRect();
+    if (!rect) return 0;
+    return clientX - rect.left;
+  }
+
+  function pointerDistance(): number {
+    const pts = [...pointers.values()];
+    if (pts.length < 2) return 0;
+    return Math.hypot(pts[0]!.lastX - pts[1]!.lastX, pts[0]!.lastY - pts[1]!.lastY);
+  }
+
+  function pinchMidpoint(): { x: number; y: number } {
+    const pts = [...pointers.values()];
+    if (pts.length < 2) return { x: 0, y: 0 };
+    const midClientX = (pts[0]!.lastX + pts[1]!.lastX) / 2;
+    const midClientY = (pts[0]!.lastY + pts[1]!.lastY) / 2;
+    // Anchor in the frame of the half-canvas under the pinch (split mode)
+    const el = document.elementFromPoint(midClientX, midClientY);
+    if (el instanceof HTMLCanvasElement) {
+      const r = el.getBoundingClientRect();
+      return { x: midClientX - r.left, y: midClientY - r.top };
+    }
+    const rect = container?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: midClientX - rect.left, y: midClientY - rect.top };
+  }
 
   function sizeAndFit() {
     if (!container) return;
@@ -35,15 +73,17 @@
     const img = original ?? restored;
 
     if (isSplit) {
-      const halfW = rect.width / 2;
+      splitStacked = rect.height > rect.width;
+      const halfW = splitStacked ? rect.width : rect.width / 2;
+      const halfH = splitStacked ? rect.height / 2 : rect.height;
       for (const c of [canvas, canvasB]) {
         if (!c) continue;
         c.width = halfW * dpr;
-        c.height = rect.height * dpr;
-        c.style.width = "50%";
-        c.style.height = `${rect.height}px`;
+        c.height = halfH * dpr;
+        c.style.width = splitStacked ? "100%" : "50%";
+        c.style.height = splitStacked ? "50%" : "100%";
       }
-      viewport.setCanvasSize(halfW, rect.height);
+      viewport.setCanvasSize(halfW, halfH);
     } else {
       if (canvas) {
         canvas.width = rect.width * dpr;
@@ -165,23 +205,43 @@
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();
-    const target = e.currentTarget as HTMLCanvasElement;
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
+    const rect = container?.getBoundingClientRect();
+    if (!rect) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
     viewport.smoothZoom(x, y, factor);
   }
 
-  function onMouseDown(e: MouseEvent) {
-    if (e.button !== 0) return;
+  function onPointerDown(e: PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Let overlay UI (ErrorOverlay buttons etc.) receive its own clicks
+    if (!(e.target instanceof HTMLCanvasElement)) return;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // No active pointer (synthetic events) — safe to continue without capture
+    }
+    pointers.set(e.pointerId, { downX: e.clientX, downY: e.clientY, lastX: e.clientX, lastY: e.clientY });
+
+    if (pointers.size === 2) {
+      pinchDist = pointerDistance();
+      panning = false;
+      sliderDragging = false;
+      peekingOriginal = false;
+      ui.togglingOriginal = false;
+      suppressTap = true;
+      return;
+    }
+    if (pointers.size > 2) return;
+
     if (ui.compareMode === "slider" && hasResult && original) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const x = toLocalX(e.clientX);
       const screenSplitX = sliderPos * original.width * viewport.vp.scale + viewport.vp.offsetX;
-      if (Math.abs(x - screenSplitX) < 10) {
+      const grabRadius = e.pointerType === "touch" ? 24 : 10;
+      if (Math.abs(x - screenSplitX) < grabRadius) {
         sliderDragging = true;
+        dragStarted = false;
         return;
       }
     }
@@ -192,24 +252,42 @@
       panning = true;
     }
     dragStarted = false;
-    lastX = e.clientX;
-    lastY = e.clientY;
   }
 
-  function onMouseMove(e: MouseEvent) {
-    if (sliderDragging && canvas && original) {
-      const rect = canvas.getBoundingClientRect();
-      const imgX = (e.clientX - rect.left - viewport.vp.offsetX) / (viewport.vp.scale * original.width);
-      sliderPos = Math.min(1, Math.max(0, imgX));
+  function onPointerMove(e: PointerEvent) {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+
+    const dx = e.clientX - p.lastX;
+    const dy = e.clientY - p.lastY;
+    p.lastX = e.clientX;
+    p.lastY = e.clientY;
+
+    if (pointers.size >= 2) {
+      const dist = pointerDistance();
+      if (pinchDist > 0 && dist > 0) {
+        const mid = pinchMidpoint();
+        viewport.cancelSmooth();
+        viewport.zoom(mid.x, mid.y, dist / pinchDist);
+      }
+      pinchDist = dist;
       return;
     }
+
+    if (sliderDragging) {
+      if (original) {
+        const x = toLocalX(e.clientX);
+        const imgX = (x - viewport.vp.offsetX) / (viewport.vp.scale * original.width);
+        sliderPos = Math.min(1, Math.max(0, imgX));
+      }
+      return;
+    }
+
     if (!peekingOriginal && !panning) return;
 
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-
     if (peekingOriginal && !dragStarted) {
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      const moved = Math.hypot(e.clientX - p.downX, e.clientY - p.downY);
+      if (moved > (e.pointerType === "touch" ? 10 : 4)) {
         dragStarted = true;
         peekingOriginal = false;
         ui.togglingOriginal = false;
@@ -217,18 +295,52 @@
       }
     }
 
-    if (panning) {
-      viewport.pan(dx, dy);
-      lastX = e.clientX;
-      lastY = e.clientY;
-    }
+    if (panning) viewport.pan(dx, dy);
   }
 
-  function onMouseUp() {
+  function endPointer(e: PointerEvent, canceled: boolean) {
+    pointers.delete(e.pointerId);
+    pinchDist = 0;
+
+    if (pointers.size === 1) {
+      panning = true;
+      peekingOriginal = false;
+      ui.togglingOriginal = false;
+      dragStarted = true;
+      sliderDragging = false;
+      return;
+    }
+
+    const wasDrag = dragStarted || sliderDragging;
     panning = false;
     sliderDragging = false;
     peekingOriginal = false;
     ui.togglingOriginal = false;
+
+    if (!canceled && !wasDrag && !suppressTap && e.pointerType !== "mouse") {
+      const now = performance.now();
+      const isDoubleTap =
+        lastTap !== null &&
+        now - lastTap.t < 300 &&
+        Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 48;
+      if (isDoubleTap) {
+        const img = original ?? restored;
+        if (img) viewport.fit(img.width, img.height);
+        lastTap = null;
+      } else {
+        lastTap = { x: e.clientX, y: e.clientY, t: now };
+      }
+    }
+    suppressTap = false;
+    dragStarted = false;
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    endPointer(e, false);
+  }
+
+  function onPointerCancel(e: PointerEvent) {
+    endPointer(e, true);
   }
 
   function onDoubleClick() {
@@ -269,22 +381,33 @@
   }
 </script>
 
-<svelte:window onmouseup={onMouseUp} onkeydown={onKeyDown} onkeyup={onKeyUp} />
+<svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} />
 
-<div class="stage" role="region" aria-label="Image canvas — drop images here to add them to the queue" bind:this={container} ondragover={onDragOver} ondragleave={onDragLeave} ondrop={onDrop} class:drag-over={dragOver}>
+<div
+  class="stage"
+  role="region"
+  aria-label="Image canvas — drop images here to add them to the queue"
+  bind:this={container}
+  ondragover={onDragOver}
+  ondragleave={onDragLeave}
+  ondrop={onDrop}
+  onwheel={onWheel}
+  onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerCancel}
+  class:drag-over={dragOver}
+>
   <ProgressTopBar />
   <ErrorOverlay />
   {#if ui.compareMode === "split" && hasResult}
-    <div class="split-container">
-      <canvas bind:this={canvas} onwheel={onWheel} onmousedown={onMouseDown} onmousemove={onMouseMove} ondblclick={onDoubleClick}></canvas>
-      <canvas bind:this={canvasB} onwheel={onWheel} onmousedown={onMouseDown} onmousemove={onMouseMove} ondblclick={onDoubleClick}></canvas>
+    <div class="split-container" class:stacked={splitStacked}>
+      <canvas bind:this={canvas} ondblclick={onDoubleClick}></canvas>
+      <canvas bind:this={canvasB} ondblclick={onDoubleClick}></canvas>
     </div>
   {:else}
     <canvas
       bind:this={canvas}
-      onwheel={onWheel}
-      onmousedown={onMouseDown}
-      onmousemove={onMouseMove}
       ondblclick={onDoubleClick}
       style="cursor:{sliderDragging ? 'ew-resize' : panning ? 'grabbing' : 'grab'}"
     ></canvas>
@@ -292,7 +415,7 @@
 </div>
 
 <style>
-  .stage { position: absolute; inset: 0; overflow: hidden; }
+  .stage { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
   .stage.drag-over::after {
     content: "";
     position: absolute;
@@ -305,5 +428,6 @@
   }
   canvas { position: absolute; inset: 0; }
   .split-container { position: absolute; inset: 0; display: flex; }
-  .split-container canvas { position: relative; flex: 1; width: 50%; }
+  .split-container.stacked { flex-direction: column; }
+  .split-container canvas { position: relative; }
 </style>

@@ -19,5 +19,6 @@ button {
   border: none;
   background: none;
   color: inherit;
+  touch-action: manipulation;
 }
 input, select { font: inherit; }
