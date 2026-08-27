@@ -4,8 +4,8 @@ import sys, time, gc
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import torch
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.train.schedule import enable_fast_gpu
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.train.schedule import enable_fast_gpu
 
 PATCH = 256
 DEV = "cuda"

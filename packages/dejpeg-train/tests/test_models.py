@@ -10,11 +10,11 @@ import math
 import pytest
 import torch
 
-from dejpeg.model.blocks import LSCA, GlobalSCA, NAFBlock, RepDWConv3x3
-from dejpeg.model.degencoder import DeJPEGNetE
-from dejpeg.model.reparam import fuse_rep_dwconv, fuse_stacked_3x3_to_5x5
-from dejpeg.model.student import DeJPEGNetS, build_ctx, dropout_qtable
-from dejpeg.model.teacher import DeJPEGNetT
+from dejpeg_train.model.blocks import LSCA, GlobalSCA, NAFBlock, RepDWConv3x3
+from dejpeg_train.model.degencoder import DeJPEGNetE
+from dejpeg_train.model.reparam import fuse_rep_dwconv, fuse_stacked_3x3_to_5x5
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx, dropout_qtable
+from dejpeg_train.model.teacher import DeJPEGNetT
 
 
 def count_params(m: torch.nn.Module) -> int:

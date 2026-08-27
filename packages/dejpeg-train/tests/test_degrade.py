@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from dejpeg.data.controls import ControlConfig, ControlSampler
-from dejpeg.data.degrade import DegradationConfig, DegradationSampler, sample_qf
+from dejpeg_train.data.controls import ControlConfig, ControlSampler
+from dejpeg_train.data.degrade import DegradationConfig, DegradationSampler, sample_qf
 
 
 def make_clean(seed: int = 0, size: int = 640) -> np.ndarray:

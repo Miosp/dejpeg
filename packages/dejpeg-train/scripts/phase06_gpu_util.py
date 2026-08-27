@@ -8,10 +8,10 @@ import subprocess, sys, threading, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import torch
-from dejpeg.data.loader import make_dataloader
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.train.schedule import prepare_model_for_training
-from dejpeg.paths import shards_dir
+from dejpeg_train.data.loader import make_dataloader
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.train.schedule import prepare_model_for_training
+from dejpeg_train.paths import shards_dir
 
 SHARDS = [str(shards_dir() / "div2k-*.tar"),
           str(shards_dir() / "flickr2k-*.tar")]

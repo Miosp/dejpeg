@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from dejpeg.data import manifest as M
-from dejpeg.data.prepare import PrepareConfig, _ANNEX_K_LUMA_50, estimate_qf, prepare_source
+from dejpeg_train.data import manifest as M
+from dejpeg_train.data.prepare import PrepareConfig, _ANNEX_K_LUMA_50, estimate_qf, prepare_source
 
 
 def _gradient(size=700):

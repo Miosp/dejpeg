@@ -21,12 +21,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from dejpeg.data.jpegmeta import parse_jpeg
-from dejpeg.eval.dists import DISTS
-from dejpeg.eval.metrics import psnr, psnr_b
-from dejpeg.model.conditioning import quant_table_to_condition
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.paths import phase_dir, testsets_dir, raw_dir, eval_sets_dir
+from dejpeg_train.data.jpegmeta import parse_jpeg
+from dejpeg_train.eval.dists import DISTS
+from dejpeg_train.eval.metrics import psnr, psnr_b
+from dejpeg_train.model.conditioning import quant_table_to_condition
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.paths import phase_dir, testsets_dir, raw_dir, eval_sets_dir
 
 DEV = "cuda"
 CKPT_DIR = phase_dir("phase06") / "p3"

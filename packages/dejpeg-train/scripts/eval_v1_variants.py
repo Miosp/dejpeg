@@ -21,9 +21,9 @@ import torch  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 import lpips  # noqa: E402
 
-from dejpeg.eval.dists import DISTS  # noqa: E402
-from dejpeg.model.student import DeJPEGNetS  # noqa: E402
-from dejpeg.paths import phase_dir, testsets_dir
+from dejpeg_train.eval.dists import DISTS  # noqa: E402
+from dejpeg_train.model.student import DeJPEGNetS  # noqa: E402
+from dejpeg_train.paths import phase_dir, testsets_dir
 
 DEV = "cuda"
 V15 = Path(os.environ.get("V15_CKPT", phase_dir("phase_v15") / "student_v15_final.pt"))

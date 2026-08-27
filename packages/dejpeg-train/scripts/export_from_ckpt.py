@@ -4,9 +4,9 @@ import os, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import torch
-from dejpeg.export.onnx import export_onnx, fuse_for_export
-from dejpeg.model.student import DeJPEGNetS
-from dejpeg.paths import phase_dir
+from dejpeg_train.export.onnx import export_onnx, fuse_for_export
+from dejpeg_train.model.student import DeJPEGNetS
+from dejpeg_train.paths import phase_dir
 
 CKPT = os.environ["CKPT"]
 C0 = int(os.environ.get("C0", "40"))

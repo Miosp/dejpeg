@@ -10,8 +10,8 @@ import torch.nn.functional as F
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
-from dejpeg.model.student import DeJPEGNetS  # noqa: E402
-from dejpeg.paths import data_root, phase_dir, raw_dir
+from dejpeg_train.model.student import DeJPEGNetS  # noqa: E402
+from dejpeg_train.paths import data_root, phase_dir, raw_dir
 
 CKPT = Path(os.environ.get("GATE_CKPT", phase_dir("phase2") / "student_p2_latest.pt"))
 DIV2K = data_root() / "DIV2K_valid_HHR"  # fallback below if missing

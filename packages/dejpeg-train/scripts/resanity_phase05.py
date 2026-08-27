@@ -6,16 +6,16 @@ from pathlib import Path
 
 REPO = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO + "/src")
-from dejpeg.paths import phase_dir, shards_dir
+from dejpeg_train.paths import phase_dir, shards_dir
 
 OUT = str(phase_dir("phase05"))
 SHARDS = str(shards_dir() / "div2k-*.tar")
 DEV = "cuda"
 
-from dejpeg.model.student import DeJPEGNetS
-from dejpeg.model.conditioning import record_to_condition
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.train.schedule import EMA, bf16_autocast
+from dejpeg_train.model.student import DeJPEGNetS
+from dejpeg_train.model.conditioning import record_to_condition
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.train.schedule import EMA, bf16_autocast
 
 
 def hwc_to_chw_t(a):

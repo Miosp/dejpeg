@@ -18,9 +18,9 @@ from PIL import Image
 REPO = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, f"{REPO}/src")
 
-from dejpeg.data.batcher import QFBatcher  # noqa: E402
-from dejpeg.data.degrade import DegradationSampler  # noqa: E402
-from dejpeg.model.student import DeJPEGNetS, build_ctx  # noqa: E402
+from dejpeg_train.data.batcher import QFBatcher  # noqa: E402
+from dejpeg_train.data.degrade import DegradationSampler  # noqa: E402
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx  # noqa: E402
 
 
 def report(msg: str) -> None:

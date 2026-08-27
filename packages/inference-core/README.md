@@ -1,15 +1,15 @@
 # inference-core
 
-Framework-free browser inference library for dejpeg. Provides a typed client API for running the DeJPEGNet model on images, with all heavy lifting absorbed into a Web Worker that ships with the package.
+Framework-free browser inference library for dejpeg. Provides a typed client API for running the DeJPEGNet model on images, with all heavy lifting in a Web Worker bundled with the package.
 
 Plan 3 (the Astro/Svelte UI) consumes this package and never touches `effect`, the wire protocol, decode/encode, or tensors.
 
 ## What's inside
 
-- **`InferenceClient`** — main-thread façade. State + subscribe + `loadModel`/`process`/`encode`/`dispose`.
-- **Worker host** — bundled worker entry that owns engine + codec + pipeline.
-- **Codec layer** — native-first decode/encode with lazy `@jsquash/*` fallback for HEIC/TIFF/AVIF.
-- **Typed errors** — 13 tagged error classes; full `instanceof` narrowing across the worker boundary.
+- **`InferenceClient`**: main-thread façade. State + subscribe + `loadModel`/`process`/`encode`/`dispose`.
+- **Worker host**: bundled worker entry that owns engine + codec + pipeline.
+- **Codec layer**: native-first decode/encode with lazy `@jsquash/*` fallback for HEIC/TIFF/AVIF.
+- **Typed errors**: 13 tagged error classes; full `instanceof` narrowing across the worker boundary.
 
 ## Install
 
@@ -96,14 +96,14 @@ try {
 
 ## Sub-path exports
 
-- `inference-core` (default) — the main-thread API.
-- `inference-core/worker` — the worker entry. Import once for its side effect in your worker file.
-- `inference-core/models` — static model registry for typed iteration (optional; `inference.availableModels` covers the runtime case).
+- `inference-core` (default): the main-thread API.
+- `inference-core/worker`: the worker entry. Import once for its side effect in your worker file.
+- `inference-core/models`: static model registry for typed iteration (optional; `inference.availableModels` covers the runtime case).
 
 ## Tests
 
-- `bun test` — all unit and integration tests.
-- `bun run typecheck` — strict TypeScript.
+- `bun test`: all unit and integration tests.
+- `bun run typecheck`: strict TypeScript.
 
 ## Dependencies
 

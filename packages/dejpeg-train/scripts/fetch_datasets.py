@@ -9,7 +9,7 @@ import os
 import pathlib
 import sys
 
-from dejpeg.paths import data_root
+from dejpeg_train.paths import data_root
 import tarfile
 import time
 import urllib.request

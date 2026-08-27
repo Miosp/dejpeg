@@ -24,13 +24,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from dejpeg.data.jpegmeta import parse_jpeg
-from dejpeg.data.loader import make_dataloader
-from dejpeg.eval.metrics import psnr, psnr_b
-from dejpeg.loss.perceptual import PerceptualLoss
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.paths import phase_dir, shards_dir, testsets_dir
-from dejpeg.train.schedule import (
+from dejpeg_train.data.jpegmeta import parse_jpeg
+from dejpeg_train.data.loader import make_dataloader
+from dejpeg_train.eval.metrics import psnr, psnr_b
+from dejpeg_train.loss.perceptual import PerceptualLoss
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.paths import phase_dir, shards_dir, testsets_dir
+from dejpeg_train.train.schedule import (
     EMA, bf16_autocast, clip_grad_norm, cosine_lr, prepare_model_for_training,
     save_checkpoint, set_seed,
 )
@@ -152,7 +152,7 @@ def main():
     with ema.swap(gen):
         torch.save({"model": gen.state_dict(), "ema": ema.state_dict()}, OUT / "student_p2_final.pt")
         report(gen, "FINAL")
-        from dejpeg.export.onnx import export_onnx, fuse_for_export
+        from dejpeg_train.export.onnx import export_onnx, fuse_for_export
         fused = fuse_for_export(gen)
         sample = (torch.rand(1, 3, PATCH, PATCH, device=DEV).contiguous(memory_format=torch.channels_last),
                   torch.zeros(1, 97, device=DEV))

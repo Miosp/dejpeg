@@ -10,11 +10,11 @@ from __future__ import annotations
 import pytest
 import torch
 
-from dejpeg.loss.blockiness import blockiness_loss
-from dejpeg.loss.contrastive import DegEncoderLoss, enqueue_dequeue, info_nce
-from dejpeg.loss.distill import pseudo_label_loss, spatial_affinity_loss
-from dejpeg.loss.gan import PatchDiscriminator, discriminator_hinge_loss, generator_hinge_loss
-from dejpeg.loss.ldl import ldl_loss
+from dejpeg_train.loss.blockiness import blockiness_loss
+from dejpeg_train.loss.contrastive import DegEncoderLoss, enqueue_dequeue, info_nce
+from dejpeg_train.loss.distill import pseudo_label_loss, spatial_affinity_loss
+from dejpeg_train.loss.gan import PatchDiscriminator, discriminator_hinge_loss, generator_hinge_loss
+from dejpeg_train.loss.ldl import ldl_loss
 
 
 # ----------------------------------------------------------- image fixtures
@@ -146,7 +146,7 @@ def test_distill_losses_finite():
 
 def test_perceptual_forward_smoke():
     try:
-        from dejpeg.loss.perceptual import PerceptualLoss
+        from dejpeg_train.loss.perceptual import PerceptualLoss
     except Exception as e:  # noqa: BLE001
         pytest.skip(f"lpips unavailable: {e}")
     try:

@@ -2,8 +2,8 @@
 import collections, random, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.paths import shards_dir
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.paths import shards_dir
 
 SHARDS = [str(shards_dir() / f"{s}-*.tar")
           for s in ("div2k", "flickr2k", "liu4k_v2", "user_raws")]

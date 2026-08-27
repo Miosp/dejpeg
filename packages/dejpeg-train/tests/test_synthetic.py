@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from dejpeg.data.synthetic import SyntheticGenerator
+from dejpeg_train.data.synthetic import SyntheticGenerator
 
 
 @pytest.fixture(scope="module")

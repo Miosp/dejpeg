@@ -26,8 +26,8 @@ import sys
 from pathlib import Path
 import cv2, numpy as np, torch
 sys.path.insert(0, "src")
-from dejpeg.paths import phase_dir, testsets_dir
-from dejpeg.model.student import DeJPEGNetS
+from dejpeg_train.paths import phase_dir, testsets_dir
+from dejpeg_train.model.student import DeJPEGNetS
 
 net = DeJPEGNetS(cond_mode="none").cuda()
 ck = torch.load(phase_dir("phase2b")/"student_p2_latest.pt",

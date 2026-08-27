@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from dejpeg.eval.metrics import compute_all, psnr, psnr_b, ssim
+from dejpeg_train.eval.metrics import compute_all, psnr, psnr_b, ssim
 
 
 def _gradient(size=64):
@@ -60,7 +60,7 @@ def test_compute_all_keys_without_lpips():
 
 def test_compute_all_includes_lpips_when_provided():
     try:
-        from dejpeg.eval.metrics import LPIPSAlex
+        from dejpeg_train.eval.metrics import LPIPSAlex
 
         metric = LPIPSAlex(device="cpu")
     except Exception as e:  # noqa: BLE001

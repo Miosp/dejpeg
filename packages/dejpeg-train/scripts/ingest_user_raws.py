@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from dejpeg.data.ingest_raws import ingest
-from dejpeg.paths import raw_dir, manifest_path
+from dejpeg_train.data.ingest_raws import ingest
+from dejpeg_train.paths import raw_dir, manifest_path
 
 # Default to the ext4 copy (fast reads); the /mnt/c drvfs path is 10-50x slower.
 SRC = os.environ.get(

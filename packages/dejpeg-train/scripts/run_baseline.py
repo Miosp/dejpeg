@@ -26,8 +26,8 @@ sys.path.insert(0, str(FBCNN_PY))
 from fbcnn.config import COLOR_REAL, build_model  # noqa: E402
 from fbcnn.weights import load_pretrained  # noqa: E402
 
-from dejpeg.eval.metrics import LPIPSAlex, compute_all  # noqa: E402
-from dejpeg.paths import data_root, weights_dir, work_root  # noqa: E402
+from dejpeg_train.eval.metrics import LPIPSAlex, compute_all  # noqa: E402
+from dejpeg_train.paths import data_root, weights_dir, work_root  # noqa: E402
 
 WEIGHTS_DIR = weights_dir()
 TESTSETS = data_root() / "fbcnn-upstream" / "testsets"

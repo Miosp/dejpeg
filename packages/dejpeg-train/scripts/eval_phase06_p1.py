@@ -4,14 +4,14 @@ import random, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import numpy as np, torch, torch.nn.functional as F
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.data.jpegmeta import parse_jpeg
-from dejpeg.data.loader import sample_condition
-from dejpeg.eval.metrics import psnr, psnr_b
-from dejpeg.eval.panel import contact_sheet
-from dejpeg.model.conditioning import quant_table_to_condition
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.paths import phase_dir, testsets_dir, shards_dir
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.data.jpegmeta import parse_jpeg
+from dejpeg_train.data.loader import sample_condition
+from dejpeg_train.eval.metrics import psnr, psnr_b
+from dejpeg_train.eval.panel import contact_sheet
+from dejpeg_train.model.conditioning import quant_table_to_condition
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.paths import phase_dir, testsets_dir, shards_dir
 
 DEV = "cuda"
 OUT = phase_dir("phase06") / "p1"

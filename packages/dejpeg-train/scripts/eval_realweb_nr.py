@@ -19,7 +19,7 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO.parent / "fbcnn-py" / "src"))
 
 import os
-from dejpeg.paths import eval_sets_dir, weights_dir, phase_dir
+from dejpeg_train.paths import eval_sets_dir, weights_dir, phase_dir
 
 CORPUS = eval_sets_dir() / "realweb500"
 OUT_JSON = CORPUS / "nr_scores.json"
@@ -30,7 +30,7 @@ CKPT = Path(os.environ.get(
 
 def load_student(device):
     import torch
-    from dejpeg.model.student import DeJPEGNetS
+    from dejpeg_train.model.student import DeJPEGNetS
 
     m = DeJPEGNetS(cond_mode="none", c0=int(os.environ.get("C0", "30"))).to(device)
     ck = torch.load(CKPT, map_location=device, weights_only=False)

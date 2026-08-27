@@ -23,16 +23,16 @@ import torch.nn.functional as F
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from dejpeg.data.batcher import QFBatcher
-from dejpeg.data.controls import ControlConfig, ControlSampler
-from dejpeg.data.degrade import DegradationConfig, DegradationSampler
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.export.onnx import export_onnx, fuse_for_export
-from dejpeg.model.conditioning import record_to_condition
-from dejpeg.model.degencoder import DeJPEGNetE
-from dejpeg.model.student import DeJPEGNetS
-from dejpeg.paths import phase_dir, shards_dir
-from dejpeg.train.schedule import EMA, bf16_autocast, cosine_lr, set_seed
+from dejpeg_train.data.batcher import QFBatcher
+from dejpeg_train.data.controls import ControlConfig, ControlSampler
+from dejpeg_train.data.degrade import DegradationConfig, DegradationSampler
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.export.onnx import export_onnx, fuse_for_export
+from dejpeg_train.model.conditioning import record_to_condition
+from dejpeg_train.model.degencoder import DeJPEGNetE
+from dejpeg_train.model.student import DeJPEGNetS
+from dejpeg_train.paths import phase_dir, shards_dir
+from dejpeg_train.train.schedule import EMA, bf16_autocast, cosine_lr, set_seed
 
 SHARD_GLOB = str(shards_dir() / "div2k-*.tar")
 OUT = phase_dir("phase05")

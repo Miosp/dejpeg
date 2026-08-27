@@ -4,7 +4,7 @@
  *   log(x + 1) / log(256) maps the [1, 255] quant range into [0, 1].
  *   validity = 1 when a real table was parsed, 0 when dropped or unrecoverable.
  *
- * Byte-identical twin of packages/dejpeg-train/src/dejpeg/model/conditioning.py.
+ * Byte-identical twin of packages/dejpeg-train/src/dejpeg_train/model/conditioning.py.
  * The Phase-0.5 cross-language parity test enforces this.
  */
 import { parseJpeg, type JpegMeta } from "./jpegMeta";

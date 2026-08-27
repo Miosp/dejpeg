@@ -13,9 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from dejpeg.data.manifest import open_manifest
-from dejpeg.data.prepare import PrepareConfig, prepare_source
-from dejpeg.paths import raw_dir, shards_dir, manifest_path
+from dejpeg_train.data.manifest import open_manifest
+from dejpeg_train.data.prepare import PrepareConfig, prepare_source
+from dejpeg_train.paths import raw_dir, shards_dir, manifest_path
 
 RAW = raw_dir()
 SHARDS = shards_dir()

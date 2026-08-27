@@ -1,6 +1,6 @@
 # dejpeg-train
 
-Research training pipeline for **DeJPEGNet** — the browser-deployable JPEG
+Research training pipeline for **DeJPEGNet**, the browser-deployable JPEG
 artifact remover. NAFNet-derived, blind to QF, full RGB, tile-invariant,
 FP16 ≤4MB for ONNX Runtime Web (WebGPU). The shipped model lives in
 `models/dejpeg/`; this package contains the full corpus-building and
@@ -9,7 +9,7 @@ experiment tooling behind it.
 ## Layout
 
 ```
-src/dejpeg/
+src/dejpeg_train/
   model/   blocks, prompt, student, degencoder, teacher, reparam
   data/    prepare, manifest, synthetic, sources, degrade, jpegmeta, controls, batcher
   loss/    perceptual, blockiness, ldl, contrastive, gan, distill
@@ -26,7 +26,7 @@ tests/     deterministic unit tests
 ## Path configuration
 
 Nothing is machine-specific: every script resolves locations via
-`src/dejpeg/paths.py` from two environment variables.
+`src/dejpeg_train/paths.py` from two environment variables.
 
 | Variable | Meaning | Default |
 |---|---|---|
@@ -46,9 +46,9 @@ fbcnn-upstream/    cloned FBCNN repo (testsets/Classic5, testsets/LIVE1_color)
 
 ## Environment
 
-Standalone uv project (not a workspace member — uses CUDA torch; the root
+Standalone uv project (not a workspace member: uses CUDA torch; the root
 workspace pins CPU torch for fbcnn). Code lives in the repo; the venv,
-datasets, and run outputs should live on a native Linux filesystem (ext4) —
+datasets, and run outputs should live on a native Linux filesystem (ext4),
 never on drvfs mounts like `/mnt/c`, which starve the dataloader.
 
 ```

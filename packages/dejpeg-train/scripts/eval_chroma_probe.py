@@ -13,8 +13,8 @@ import torch
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
-from dejpeg.model.student import DeJPEGNetS  # noqa: E402
-from dejpeg.paths import phase_dir, testsets_dir
+from dejpeg_train.model.student import DeJPEGNetS  # noqa: E402
+from dejpeg_train.paths import phase_dir, testsets_dir
 
 CKPT = Path(os.environ.get(
     "PROBE_CKPT", phase_dir("phase2c") / "student_p2_latest.pt"))

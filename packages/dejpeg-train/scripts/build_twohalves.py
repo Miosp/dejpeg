@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import cv2
 import numpy as np
-from dejpeg.paths import testsets_dir, eval_sets_dir
+from dejpeg_train.paths import testsets_dir, eval_sets_dir
 
 SRC = testsets_dir("LIVE1_color")
 DST = eval_sets_dir() / "twohalves"

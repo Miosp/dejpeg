@@ -10,9 +10,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from dejpeg.data.manifest import open_manifest
-from dejpeg.data.prepare import PrepareConfig, prepare_source
-from dejpeg.paths import manifest_path, raw_dir, shards_dir
+from dejpeg_train.data.manifest import open_manifest
+from dejpeg_train.data.prepare import PrepareConfig, prepare_source
+from dejpeg_train.paths import manifest_path, raw_dir, shards_dir
 
 DIV2K = raw_dir() / "div2k" / "DIV2K_train_HR"
 SHARDS = shards_dir()

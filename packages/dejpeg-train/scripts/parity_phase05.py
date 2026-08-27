@@ -10,14 +10,14 @@ import torch
 
 REPO = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO + "/src")
-from dejpeg.paths import phase_dir, work_root
+from dejpeg_train.paths import phase_dir, work_root
 
 OUT = str(phase_dir("phase05"))
 BIN = os.environ.get("PARITY_BIN", str(work_root() / "tmp" / "parity_out.bin"))
 THRESH = 0.05  # fp16 weights/activations + WebGPU numerics vs torch fp32
 
-from dejpeg.model.student import DeJPEGNetS
-from dejpeg.train.schedule import EMA
+from dejpeg_train.model.student import DeJPEGNetS
+from dejpeg_train.train.schedule import EMA
 
 # Deterministic tile (matches parity.html exactly).
 W = 256

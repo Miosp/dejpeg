@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from dejpeg.data import ingest_raws as ir
+from dejpeg_train.data import ingest_raws as ir
 
 
 def test_content_hash_deterministic_and_distinct(tmp_path):

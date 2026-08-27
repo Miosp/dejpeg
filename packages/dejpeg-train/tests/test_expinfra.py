@@ -10,9 +10,9 @@ import pytest
 import torch
 import torch.nn as nn
 
-from dejpeg.bench.latency import count_params, profile
-from dejpeg.eval.panel import contact_sheet
-from dejpeg.train.schedule import (
+from dejpeg_train.bench.latency import count_params, profile
+from dejpeg_train.eval.panel import contact_sheet
+from dejpeg_train.train.schedule import (
     EMA,
     bf16_autocast,
     capture_rng,
@@ -191,7 +191,7 @@ def test_contact_sheet_writes_png(tmp_path):
 
 
 def test_latency_profile_reports_all_four():
-    from dejpeg.model.student import DeJPEGNetS
+    from dejpeg_train.model.student import DeJPEGNetS
 
     model = DeJPEGNetS()
     tile = torch.randn(1, 3, 64, 64)

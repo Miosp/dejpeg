@@ -15,7 +15,7 @@ import urllib.request
 from pathlib import Path
 
 from PIL import Image
-from dejpeg.paths import eval_sets_dir
+from dejpeg_train.paths import eval_sets_dir
 
 OUT = eval_sets_dir() / "realweb500"
 MANIFEST = OUT / "manifest.jsonl"

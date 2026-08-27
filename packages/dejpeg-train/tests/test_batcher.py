@@ -10,7 +10,7 @@ import collections
 
 import pytest
 
-from dejpeg.data.batcher import (
+from dejpeg_train.data.batcher import (
     DEFAULT_WEIGHTED,
     NUM_BINS,
     QFBatcher,

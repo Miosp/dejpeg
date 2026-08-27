@@ -8,7 +8,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from dejpeg.paths import phase_dir, testsets_dir, eval_sets_dir, weights_dir
+from dejpeg_train.paths import phase_dir, testsets_dir, eval_sets_dir, weights_dir
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
@@ -25,7 +25,7 @@ WEIGHTS_DIR = weights_dir()
 
 def load_student(device="cuda"):
     import torch
-    from dejpeg.model.student import DeJPEGNetS
+    from dejpeg_train.model.student import DeJPEGNetS
 
     m = DeJPEGNetS(cond_mode="none", c0=int(os.environ.get("C0", "30"))).to(device)
     ck = torch.load(CKPT, map_location=device, weights_only=False)

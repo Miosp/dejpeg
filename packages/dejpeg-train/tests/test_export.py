@@ -11,10 +11,10 @@ import torch
 onnx = pytest.importorskip("onnx")
 ort = pytest.importorskip("onnxruntime")
 
-from dejpeg.export.onnx import export_onnx, fuse_for_export
-from dejpeg.export.verify import ort_parity, tile_invariance_onnx
-from dejpeg.model.blocks import RepDWConv3x3
-from dejpeg.model.student import DeJPEGNetS
+from dejpeg_train.export.onnx import export_onnx, fuse_for_export
+from dejpeg_train.export.verify import ort_parity, tile_invariance_onnx
+from dejpeg_train.model.blocks import RepDWConv3x3
+from dejpeg_train.model.student import DeJPEGNetS
 
 
 def _small_student():

@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from dejpeg.paths import manifest_path, raw_dir, shards_dir  # noqa: E402
+from dejpeg_train.paths import manifest_path, raw_dir, shards_dir  # noqa: E402
 
 RAW = raw_dir()
 SHARDS = shards_dir()
@@ -24,8 +24,8 @@ WIN_DL = Path(os.environ.get("DEJPEG_DOWNLOADS", str(Path.home() / "Downloads"))
 FLICKR_ZIP = WIN_DL / "Flickr2K.zip"
 LIU_DIR = WIN_DL / "LIU-4K"
 
-from dejpeg.data import manifest as M  # noqa: E402
-from dejpeg.data.prepare import PrepareConfig, prepare_source  # noqa: E402
+from dejpeg_train.data import manifest as M  # noqa: E402
+from dejpeg_train.data.prepare import PrepareConfig, prepare_source  # noqa: E402
 
 
 def extract_pngs(zip_path: Path, out_dir: Path, log_prefix: str) -> int:

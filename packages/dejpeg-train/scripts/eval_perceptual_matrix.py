@@ -17,10 +17,10 @@ import torch.nn.functional as F
 import cv2
 
 import fbcnn  # noqa: E402  (our port)
-from dejpeg.eval.dists import DISTS
-from dejpeg.eval.metrics import psnr
-from dejpeg.model.student import DeJPEGNetS, build_ctx  # noqa: F401
-from dejpeg.model.conditioning import quant_table_to_condition  # noqa: F401
+from dejpeg_train.eval.dists import DISTS
+from dejpeg_train.eval.metrics import psnr
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx  # noqa: F401
+from dejpeg_train.model.conditioning import quant_table_to_condition  # noqa: F401
 
 import os
 
@@ -36,7 +36,7 @@ SETS = {
 OUT = phase_dir("phase07") / "perceptual_matrix.json"
 
 import lpips  # noqa: E402
-from dejpeg.paths import phase_dir, weights_dir, testsets_dir
+from dejpeg_train.paths import phase_dir, weights_dir, testsets_dir
 lalex = lpips.LPIPS(net="alex", verbose=False).to(DEV).eval()
 dists_m = DISTS().to(DEV).eval()
 

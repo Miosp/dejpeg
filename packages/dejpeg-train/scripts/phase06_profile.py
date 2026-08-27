@@ -4,12 +4,12 @@ import random, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import torch
-from dejpeg.data.batcher import QFBatcher
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.loss.perceptual import PerceptualLoss
-from dejpeg.model.conditioning import quant_table_to_condition
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.paths import shards_dir
+from dejpeg_train.data.batcher import QFBatcher
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.loss.perceptual import PerceptualLoss
+from dejpeg_train.model.conditioning import quant_table_to_condition
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.paths import shards_dir
 
 SHARDS = [str(shards_dir() / "div2k-*.tar"),
           str(shards_dir() / "flickr2k-*.tar")]

@@ -1,23 +1,23 @@
 # fbcnn-py
 
-Modern PyTorch port of [FBCNN](https://github.com/jiaxi-jiang/FBCNN) —
+Modern PyTorch port of [FBCNN](https://github.com/jiaxi-jiang/FBCNN),
 *Towards Flexible Blind JPEG Artifacts Removal* (ICCV 2021).
 
 Originally authored by Jiaxi Jiang, Kai Zhang, Radu Timofte. Apache-2.0.
-This port modernizes the implementation while preserving the architecture
-and weight compatibility strictly.
+This port modernizes the implementation while keeping the architecture
+and weight compatibility strict.
 
 ## What this package provides
 
-- `fbcnn.FBCNN` — modernized network class
-- `fbcnn.blocks.{ResBlock, QFAttention, conv, sequential, downsample_strideconv, upsample_convtranspose}` — building blocks
-- `fbcnn.config.{Variant, COLOR_REAL, GRAY, GRAY_DOUBLE, VARIANTS, VARIANTS_BY_ID, build_model}` — variant configurations
-- `fbcnn.weights.{load_original_state_dict, load_pretrained}` — strict weight loader (the contract)
-- `fbcnn.inference.run` — high-level single-image helper
+- `fbcnn.FBCNN`: modernized network class
+- `fbcnn.blocks.{ResBlock, QFAttention, conv, sequential, downsample_strideconv, upsample_convtranspose}`: building blocks
+- `fbcnn.config.{Variant, COLOR_REAL, GRAY, GRAY_DOUBLE, VARIANTS, VARIANTS_BY_ID, build_model}`: variant configurations
+- `fbcnn.weights.{load_original_state_dict, load_pretrained}`: strict weight loader (the contract)
+- `fbcnn.inference.run`: high-level single-image helper
 
 ## Modernization summary
 
-- Architecture preserved exactly — same layers, same channels, same weights load strict
+- Architecture preserved exactly: same layers, same channels, original weights load strict
 - `functional.relu` instead of in-place `relu_` (in-place breaks ONNX export)
 - `@dataclass` Variant configs instead of JSON files
 - Type hints throughout

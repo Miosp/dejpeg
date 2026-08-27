@@ -16,7 +16,7 @@ import subprocess
 
 import pytest
 
-from dejpeg.data.jpegmeta import parse_jpeg
+from dejpeg_train.data.jpegmeta import parse_jpeg
 
 PIL = pytest.importorskip("PIL")  # only present inside the dejpeg venv
 from PIL import Image  # noqa: E402
@@ -173,7 +173,7 @@ def test_cross_language_byte_identical(fixtures, bun):
 
 
 def test_not_a_jpeg_rejected():
-    from dejpeg.data.jpegmeta import JpegParseError
+    from dejpeg_train.data.jpegmeta import JpegParseError
 
     with pytest.raises(JpegParseError):
         parse_jpeg(b"PNG\r\n\x1a\n" + b"\x00" * 32)

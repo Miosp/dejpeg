@@ -15,11 +15,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import torch
 
-from dejpeg.data.sources import DegradedBatchSource
-from dejpeg.model.conditioning import record_to_condition
-from dejpeg.model.student import DeJPEGNetS, build_ctx
-from dejpeg.train.schedule import bf16_autocast, set_seed
-from dejpeg.paths import shards_dir
+from dejpeg_train.data.sources import DegradedBatchSource
+from dejpeg_train.model.conditioning import record_to_condition
+from dejpeg_train.model.student import DeJPEGNetS, build_ctx
+from dejpeg_train.train.schedule import bf16_autocast, set_seed
+from dejpeg_train.paths import shards_dir
 
 SHARDS = str(shards_dir() / "div2k-*.tar")
 N_PAIRS = 8

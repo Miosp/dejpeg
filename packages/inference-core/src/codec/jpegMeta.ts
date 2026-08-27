@@ -1,6 +1,6 @@
 /**
  * JPEG metadata parser — TypeScript twin of
- * `packages/dejpeg-train/src/dejpeg/data/jpegmeta.ts`.
+ * `packages/dejpeg-train/src/dejpeg_train/data/jpegmeta.ts`.
  *
  * Two parsers, one truth: this module and the Python parser must produce
  * byte-identical canonical JSON on every fixture (cross-language test). If the
