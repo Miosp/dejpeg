@@ -17,7 +17,7 @@ Outputs to `dist/`.
 1. Build locally: `bun run --filter web build`
 2. Drag-and-drop `dist/` to Cloudflare Pages, or wire CI to run the build.
 3. The model file (`dejpeg-c40.onnx`, ~5.4MB) is under the 25MB per-file
-   limit and deploys with `dist/` — it must exist in `public/models/` at
+   limit and deploys with `dist/`. It must exist in `public/models/` at
    build time (see [Model file](#model-file) below).
 
 ## Production model hosting

@@ -23,6 +23,7 @@ test_results/
 
 # Large local ONNX model artifacts (hosted externally in prod)
 apps/web/public/models/*.onnx
+apps/web/public/models/*.onnx.data
 
 # Internal workspace docs (kept locally, not published)
 internal/

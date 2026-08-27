@@ -40,7 +40,7 @@ This will:
 4. Validate via shape inference + onnx.checker
 5. Quantize weights to FP16 (halves file size; native on WebGPU)
 6. Smoke test: torch vs ONNX Runtime CPU within 1e-2 max abs
-7. Print a TS stub — paste it into a new file under `packages/inference-core/src/models/`
+7. Print a TS stub: paste it into a new file under `packages/inference-core/src/models/`
 
 ## Convert all variants
 
@@ -58,10 +58,10 @@ done
 
 ## Validation
 
-- `onnx.checker.check_model` after shape inference — structural validity
-- `test_weights_compat.py` in fbcnn-py — strict key-for-key weight compatibility
-- `test_psr_psnr.py` in fbcnn-py — PSNR parity on Classic5 (paper tolerance ±0.2 dB)
-- `smoke_test.py` here — torch vs ONNX Runtime output within FP16 tolerance
+- `onnx.checker.check_model` after shape inference: structural validity
+- `test_weights_compat.py` in fbcnn-py: strict key-for-key weight compatibility
+- `test_psr_psnr.py` in fbcnn-py: PSNR parity on Classic5 (paper tolerance ±0.2 dB)
+- `smoke_test.py` here: torch vs ONNX Runtime output within FP16 tolerance
 
 ## When to re-run
 
@@ -69,4 +69,4 @@ done
 - Updating the FBCNN port: re-run all variants and re-verify smoke
 - Updating PyTorch or ONNX opset: re-run all variants; investigate any smoke failures
 
-Manual cadence by design — conversion is rare and benefits from human review of the smoke output.
+Manual cadence by design: conversion is rare and benefits from human review of the smoke output.

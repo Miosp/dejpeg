@@ -31,7 +31,7 @@ WEIGHTS_FILENAME = "dejpeg-c40-fp16.pt"
 # Download source for the shipped FP16 weights. Point this at the actual
 # GitHub Release asset once the repository is published; overridable via
 # DEJPEG_WEIGHTS_URL for mirrors or local hosting.
-RELEASE_WEIGHTS_URL = "https://github.com/OWNER/dejpeg/releases/download/v1.0.0/dejpeg-c40-fp16.pt"
+RELEASE_WEIGHTS_URL = "https://github.com/miosp/dejpeg/releases/download/v1.0.0/dejpeg-c40-fp16.pt"
 
 
 def cache_dir() -> Path:

@@ -2,7 +2,7 @@
 
 Compact perceptual JPEG artifact removal. A 2.63M-parameter activation-free U-Net
 that removes blocking, ringing and banding from JPEG-compressed images while
-keeping texture natural — trained with nothing but a folder of clean images.
+keeping texture natural, trained with nothing but a folder of clean images.
 
 Shipped weights (`dejpeg-c40-fp16.pt`, ~5 MB FP16) are distributed as a
 GitHub Release asset; `load_model()` downloads them to `~/.cache/dejpeg/` on
@@ -30,7 +30,7 @@ DISTS (perceptual distance):
 
 LPIPS follows the same pattern (e.g. Classic5 QF10: 0.1804 vs FBCNN's 0.2594).
 PSNR is where FBCNN keeps a ~1 dB distortion-metric lead (Classic5 QF10:
-29.80 vs our 28.81) — this model optimizes for how images *look*, not pixel
+29.80 vs our 28.81); this model optimizes for how images *look*, not pixel
 averages. A built-in unsharp post-process (exposed as `--sharpness`, default
 on) buys back some of that punch at negligible perceptual cost.
 
@@ -95,14 +95,15 @@ python scripts/evaluate.py --suite data/benchmarks/classic5 --qf 10 20 30 40
 
 The network predicts a *residual* on top of its input (zero-initialized output
 head), so it learns only corrections and never degrades what it doesn't
-understand. Architecture highlights:
+understand. Architecture:
 
-- **NAFNet-style blocks** — LayerNorm → 1×1 conv → depthwise 3×3 → SimpleGate
+- **NAFNet-style blocks**: LayerNorm → 1×1 conv → depthwise 3×3 → SimpleGate
   (channel split + multiply as the only nonlinearity) → channel attention.
-- **Local channel attention** — gates pool over fixed 32px windows, never the
+- **Local channel attention**: gates pool over fixed 32px windows, never the
   whole image. Changing pixels far away cannot affect nearby outputs
-  (enforced by test), which is what makes large-image inference seamless.
-- **Reparameterizable depthwise convs** — parallel {3×3, 1×1, identity} branches
+  (enforced by test), which is what makes tiled large-image inference
+  consistent.
+- **Reparameterizable depthwise convs**: parallel {3×3, 1×1, identity} branches
   during training fold into one depthwise conv for deployment.
 - Strided convs down, PixelShuffle up, skip connections throughout.
   Inputs are reflect-padded to a multiple of 32; any image size works.
@@ -115,13 +116,13 @@ hard way):
 - **Identity anchor** (`--identity-frac 0.1`): a fraction of pairs are left
   undegraded so the model learns when *not* to act.
 - **Grayscale anchor** (`--gray-frac 0.25`): without it the model hallucinates
-  color on grayscale / flat-chroma content — it had learned "JPEG artifacts
+  color on grayscale / flat-chroma content; it had learned "JPEG artifacts
   are colorful". Anchoring on desaturated pairs removes chroma hallucination
   entirely while leaving color restoration intact elsewhere.
 - **LPIPS on a random 128px crop**: full-patch VGG-LPIPS under autocast is a
   NaN source; the crop fixes both memory and stability.
 - **EMA weights** (`decay 0.999`) are evaluated and shipped, never raw weights.
-- bf16 autocast (never fp16 — fp16 + LPIPS NaNs), AdamW β=(0.9, 0.9),
+- bf16 autocast (never fp16: fp16 + LPIPS NaNs), AdamW β=(0.9, 0.9),
   grad-clip 1.0, warmup + cosine to zero.
 
 ## Development

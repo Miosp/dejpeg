@@ -1,7 +1,7 @@
 # dejpeg
 
 JPEG artifact removal that runs entirely in your browser. Photos never leave
-the device — inference executes client-side via ONNX Runtime Web (WebGPU
+the device: inference runs client-side via ONNX Runtime Web (WebGPU
 primary, WASM fallback), backed by a compact custom-trained model.
 
 ## What's here
@@ -48,7 +48,7 @@ python models/dejpeg/scripts/train.py --data ~/datasets/clean-images --out runs/
 
 The full research pipeline (`packages/dejpeg-train/`) builds WebDataset shard
 corpora from DIV2K/Flickr2K-class sources and synthesizes JPEG degradations on
-the fly — see its README.
+the fly; see its README.
 
 ## Development
 
