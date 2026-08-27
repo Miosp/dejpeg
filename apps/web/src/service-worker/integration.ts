@@ -51,6 +51,12 @@ export function serwist(): AstroIntegration {
           configFile: false,
           root: cwd,
           logLevel: "warn",
+          // Library-mode builds skip Vite's client defines, which leaves raw
+          // `process.env.NODE_ENV` references in the serwist runtime and
+          // crashes the SW at evaluation time in the browser.
+          define: {
+            "process.env.NODE_ENV": JSON.stringify("production"),
+          },
           build: {
             lib: {
               entry: path.resolve(cwd, SW_SOURCE),
