@@ -1,5 +1,6 @@
 import type { AstroIntegration } from "astro";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -9,13 +10,21 @@ const SW_SOURCE = "./src/service-worker/index.ts";
 // never by the SW precache. See Task 6 spec + task-6-review.md Critical finding.
 const PRECACHE_EXCLUDE_PREFIXES = ["models/"];
 
+// Cloudflare Workers Static Assets consumes these at deploy time and never
+// serves them; precaching them fails install with bad-precaching-response.
+const PRECACHE_EXCLUDE_FILES = new Set(["sw.js", "sw.js.map", "_headers", "_redirects"]);
+
 // Defense-in-depth: skip any single file larger than Cloudflare Pages' 25MB
 // asset limit so a future large binary cannot regress into the precache list.
 const MAX_PRECACHE_FILE_BYTES = 25 * 1024 * 1024;
 
-async function collectPrecacheEntries(outDir: string): Promise<string[]> {
-  const entries: string[] = [];
-  const skip = new Set(["sw.js", "sw.js.map"]);
+interface PrecacheEntry {
+  url: string;
+  revision: string;
+}
+
+async function collectPrecacheEntries(outDir: string): Promise<PrecacheEntry[]> {
+  const entries: PrecacheEntry[] = [];
 
   async function walk(rel: string) {
     const abs = path.join(outDir, rel);
@@ -25,12 +34,16 @@ async function collectPrecacheEntries(outDir: string): Promise<string[]> {
         await walk(rel ? `${rel}/${child}` : child);
       }
     } else if (
-      !skip.has(rel) &&
+      !PRECACHE_EXCLUDE_FILES.has(rel) &&
       !rel.endsWith(".map") &&
       !PRECACHE_EXCLUDE_PREFIXES.some((p) => rel.startsWith(p)) &&
       stat.size <= MAX_PRECACHE_FILE_BYTES
     ) {
-      entries.push(`/${rel}`);
+      const content = await fs.readFile(abs);
+      entries.push({
+        url: `/${rel}`,
+        revision: createHash("md5").update(content).digest("hex"),
+      });
     }
   }
 
