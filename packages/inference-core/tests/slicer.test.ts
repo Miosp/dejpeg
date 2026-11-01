@@ -22,20 +22,29 @@ test("2x2 grid with no overlap", () => {
 
 test("overlap increases tile count", () => {
   // 768 = 3*256 divides evenly: 9 tiles no overlap.
-  // overlap=64 -> step=192 -> 4 origins + last-snap -> 16 tiles.
+  // overlap=64 -> step=192 -> 3 origins + aligned overhang -> 16 tiles.
   const noOverlap = computePlan(768, 768, 256, 0);
   const withOverlap = computePlan(768, 768, 256, 64);
   expect(noOverlap.tiles).toHaveLength(9);
   expect(withOverlap.tiles).toHaveLength(16);
 });
 
-test("last-tile-snap covers the right edge", () => {
-  // width=300, tile=256, overlap=0: positions 0 only, but 256+ doesn't fit,
-  // and 0+256=256 < 300 so we snap one to 300-256=44.
+test("remainder edge covered by an aligned overhang tile", () => {
+  // width=300, tile=256, overlap=0: origin 0 fits; origin 256 overhangs to
+  // 512 (extraction mirrors, blending clamps) instead of snapping to the
+  // arbitrary-phase origin 44. Origins stay multiples of the 256 step.
   const plan = computePlan(300, 300, 256, 0);
-  const xs = new Set(plan.tiles.map((t) => t.x0));
-  expect(xs).toContain(0);
-  expect(xs).toContain(44);
+  const xs = [...new Set(plan.tiles.map((t) => t.x0))].sort((a, b) => a - b);
+  expect(xs).toEqual([0, 256]);
+});
+
+test("origins are phase-aligned (multiples of step) for every tile", () => {
+  const plan = computePlan(1000, 700, 256, 64); // step = 192
+  expect(plan.tiles.length).toBeGreaterThan(0);
+  for (const t of plan.tiles) {
+    expect(t.x0 % 192).toBe(0);
+    expect(t.y0 % 192).toBe(0);
+  }
 });
 
 test("every tile is full-size (no partials)", () => {

@@ -20,9 +20,8 @@ Outputs to `dist/`.
 
 Serves static assets from `dist/` on a `*.workers.dev` URL
 (`wrangler.jsonc`). COOP/COEP headers come from `public/_headers`, which
-Workers Static Assets honors. The model file (`dejpeg-c40.onnx`, ~5.4MB)
-must exist in `public/models/` at build time (see
-[Model file](#model-file) below).
+Workers Static Assets honors. The model files must exist in `public/models/`
+at build time (see [Model files](#model-files) below).
 
 Two Workers-specific size notes:
 
@@ -35,21 +34,22 @@ Two Workers-specific size notes:
 
 ## Production model hosting
 
-Not required: `dejpeg-c40.onnx` is ~5.4MB, under the 25 MiB per-file
-limit, so it ships with the build. If a future model exceeds the limit,
+Not required: every model is under the 25 MiB per-file limit (about 15 MB
+for each v2 file, 5.4 MB for v1), so they ship with the build. If a future
+model exceeds the limit,
 host it on object storage with permissive CORS (e.g. Cloudflare R2:
 `wrangler r2 bucket create`, upload, enable public access, `wrangler r2
 bucket cors put` with your site's origin) and point the model def's `url`
 at the public bucket URL.
 
-## Model file
+## Model files
 
-Copy `dejpeg-c40.onnx` into `public/models/` for local dev:
+The files are gitignored. Do not commit them. Download them from the GitHub
+releases into `public/models/`:
 
-    cp <export-dir>/dejpeg-c40.onnx apps/web/public/models/
-
-The file is gitignored. Do not commit it. Generate it with
-`models/dejpeg/scripts/export_onnx.py --dynamic` if missing.
+    cd apps/web/public/models
+    gh release download v2.0.0 -R Miosp/dejpeg -p 'dejpeg-v2*.onnx'
+    gh release download v2.0.0 -R Miosp/dejpeg -p dejpeg-c40.onnx
 
 ## Custom domain
 

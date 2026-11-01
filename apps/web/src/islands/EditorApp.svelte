@@ -24,7 +24,9 @@
 
   let activeController: AbortController | null = $state(null);
 
-  let modelLoading = false;
+  // Reactive so a model picked during a load is loaded right after it.
+  let modelLoading = $state(false);
+  let attemptedModelId: string | null = null;
 
   // Load model when persistedModelId changes. Pre-fetches the model file with
   // progress tracking, then lets the worker load from browser cache.
@@ -34,13 +36,13 @@
       persistedModelId.value = MODELS[0]!.id;
       return;
     }
-    if (modelLoading) return;
-    if (snapshot.modelId === modelId && snapshot.state === "ready") return;
+    if (modelLoading || attemptedModelId === modelId) return;
     const modelDef = MODELS.find((m) => m.id === modelId);
     if (!modelDef) {
       persistedModelId.value = MODELS[0]!.id;
       return;
     }
+    attemptedModelId = modelId;
     modelLoading = true;
     void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`)
       .then(() => inference.loadModel(modelId))

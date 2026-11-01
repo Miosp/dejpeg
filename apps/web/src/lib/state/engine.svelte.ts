@@ -35,8 +35,9 @@ class EngineState {
 export const engine = new EngineState();
 
 // Persist active model selection across reloads. Consumed by EditorApp
-// (Task 8) to auto-load the last-used model on startup.
+// (Task 8) to auto-load the last-used model on startup. The key changed when
+// v2 became the default, so visitors who only ever had v1 move to it.
 export const persistedModelId = persisted<string | null>(
-  "dejpeg:activeModel",
+  "dejpeg:model",
   null,
 );

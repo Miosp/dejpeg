@@ -30,7 +30,7 @@ export type ModelParam =
  * Binding for a model input. Either it's the image tensor ("image") or it
  * pulls a value from the user params by name.
  */
-export type InputBinding = "image" | { param: string };
+export type InputBinding = "image" | { param: string; shared?: boolean };
 
 export interface ModelDef {
   id: string;

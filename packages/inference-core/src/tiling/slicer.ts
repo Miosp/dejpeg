@@ -20,8 +20,10 @@ export interface TilePlan {
 /**
  * Compute a tile grid for an image.
  *
- * Last-tile-snap: if a tile would extend past the image, shift it inward so
- * it is a full tile (with more overlap on its interior side). No partials.
+ * Origins stay on the `tileSize - overlap` step grid (phase-aligned); if the
+ * grid leaves a remainder at the far edge, one more full tile is emitted that
+ * overhangs the image: extraction mirrors into the overhang and blending clamps
+ * to image bounds. No partial tiles and no arbitrary-phase snapping.
  */
 export function computePlan(
   width: number,
@@ -66,7 +68,8 @@ function computeAxisOrigins(
   }
   const last = origins[origins.length - 1]!;
   if (last + tileSize < length) {
-    origins.push(length - tileSize);
+    // aligned overhang tile: mirrored at extraction, clamped at blend
+    origins.push(last + step);
   }
   return origins;
 }

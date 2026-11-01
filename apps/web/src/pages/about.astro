@@ -6,14 +6,19 @@ import Layout from "../astro/Layout.astro";
     <h1>About</h1>
     <p>
       dejpeg is a browser-based JPEG artifact remover. It runs our
-      custom-trained DeJPEGNet model entirely in your browser via WebGPU or
+      custom-trained DeJPEGNet models entirely in your browser via WebGPU or
       WebAssembly, depending on what your device supports. Your images never
       leave your computer.
     </p>
     <p>
-      The model is split into tiles, processed one at a time, and reassembled
+      The image is split into tiles, processed one at a time, and reassembled
       with feathered blending so any image size works without running out of
       memory.
+    </p>
+    <p>
+      DeJPEGNet v2 is the default and stays closest to the original. The
+      Texture version adds a slider for natural-looking grain, which is
+      synthetic and not recovered detail. DeJPEGNet v1 is a smaller download.
     </p>
   </article>
 </Layout>

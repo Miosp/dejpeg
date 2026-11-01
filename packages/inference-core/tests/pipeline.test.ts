@@ -11,6 +11,7 @@ import {
 } from "../src/pipeline/runtime.js";
 import { MockEngine } from "../src/engine/mock.js";
 import { dejpegC40 } from "../src/models/dejpegC40.js";
+import { dejpegV2Texture } from "../src/models/dejpegV2.js";
 import type { ModelDef } from "../src/models/types.js";
 import {
   CanvasCapExceeded,
@@ -383,4 +384,42 @@ test("signal aborted after the first chunk stops the tile loop", async () => {
   expect(cause.error).toBeInstanceOf(Cancelled);
   // Only the first chunk ran; the remaining tiles were skipped.
   expect(engine.calls.length).toBe(1);
+});
+
+test("tile overhang past the image edge is mirrored, not black", async () => {
+  const engine = new MockEngine();
+  const events: ImageProgress[] = [];
+  const data = new Float32Array(3 * 4 * 4);
+  for (let i = 0; i < data.length; i++) data[i] = (i + 1) / data.length;
+  const image = { data, channels: 3, width: 4, height: 4 };
+  await Effect.runPromiseExit(
+    processImage({ itemId: "x", image }, dejpegC40, {}, (e) => events.push(e), {
+      tileSizeOverride: 16,
+    }).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+  const tile = engine.calls[0]!.feeds.input!.data;
+  // First row of channel 0: a b c d | d c b a | ...
+  expect(Array.from(tile.slice(4, 8))).toEqual(Array.from(data.slice(0, 4)).reverse());
+  // Last row of channel 0 mirrors the first row of the image.
+  expect(Array.from(tile.slice(240, 244))).toEqual(Array.from(data.slice(0, 4)));
+});
+
+test("tile batching keeps a shared param at shape [1, 1]", async () => {
+  const engine = new MockEngine();
+  const events: ImageProgress[] = [];
+  const exit = await Effect.runPromiseExit(
+    processImage(
+      { itemId: "x", image: makeSyntheticImage(1024, 512) },
+      dejpegV2Texture,
+      { texture: 0.25 },
+      (e) => events.push(e),
+      { tileSizeOverride: 512, tileBatch: 8 },
+    ).pipe(Effect.provideService(EngineEnv, makeEngineEnv(engine))),
+  );
+
+  expect(exit._tag).toBe("Success");
+  expect(engine.calls.length).toBe(1);
+  expect(engine.calls[0]!.feeds.input!.shape).toEqual([3, 3, 512, 512]);
+  expect(engine.calls[0]!.feeds.g!.shape).toEqual([1, 1]);
+  expect(Array.from(engine.calls[0]!.feeds.g!.data)).toEqual([0.25]);
 });

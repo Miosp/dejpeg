@@ -1,6 +1,6 @@
 # inference-core
 
-Framework-free browser inference library for dejpeg. Provides a typed client API for running the DeJPEGNet model on images, with all heavy lifting in a Web Worker bundled with the package.
+Framework-free browser inference library for dejpeg. Provides a typed client API for running DeJPEGNet models on images, with all heavy lifting in a Web Worker bundled with the package.
 
 Plan 3 (the Astro/Svelte UI) consumes this package and never touches `effect`, the wire protocol, decode/encode, or tensors.
 
@@ -41,7 +41,7 @@ export const inference = createInferenceClient({
 import { inference } from "./lib/inference.svelte";
 
 // Load a model (one at a time in v1).
-await inference.loadModel("dejpeg-c40");
+await inference.loadModel("dejpeg-v2");
 
 // Read state reactively (Svelte auto-subscribes via $state wrapper in the .svelte.ts file).
 console.log(inference.state); // "ready"

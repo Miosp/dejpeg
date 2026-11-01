@@ -31,6 +31,12 @@ test("every model has at least one input bound to 'image'", () => {
   }
 });
 
+test("every model fits the 25 MiB per-file asset limit", () => {
+  for (const m of MODELS) {
+    expect(m.sizeBytes).toBeLessThanOrEqual(25 * 1024 * 1024);
+  }
+});
+
 test("every model declares at least one output", () => {
   for (const m of MODELS) {
     expect(m.outputs.length).toBeGreaterThan(0);
