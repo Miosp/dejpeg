@@ -75,10 +75,13 @@ def main() -> None:
                 gt = Image.open(path).convert("RGB")
                 degraded = jpeg_roundtrip(gt, qf)
                 out = restore_array(to_tensor(degraded, args.device), model, args.sharpness)
+                # D8: the app ships uint8 pixels -- score exactly what the
+                # user gets, not the pre-quantization float (which flatters
+                # LPIPS/DISTS relative to PSNR's uint8 domain).
+                out_u8 = (out.permute(1, 2, 0).cpu().numpy() * 255).round().astype(np.uint8)
                 row = {"input_psnr": psnr(np.asarray(gt), np.asarray(degraded)),
-                       "psnr": psnr(np.asarray(gt),
-                                    (out.permute(1, 2, 0).cpu().numpy() * 255).round().astype(np.uint8))}
-                x = out.unsqueeze(0)
+                       "psnr": psnr(np.asarray(gt), out_u8)}
+                x = torch.from_numpy(out_u8.astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0).to(args.device)
                 gt_t = to_tensor(gt, args.device).unsqueeze(0)
                 for name, metric in metrics.items():
                     row[name] = float(metric(x, gt_t))

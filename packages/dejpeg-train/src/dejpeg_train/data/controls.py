@@ -27,7 +27,7 @@ class ControlConfig:
 
 def _control_record(kind: str) -> DegradationRecord:
     return DegradationRecord(
-        qf=[100], subsampling="444", progressive=False, passes=0,
+        qf=[100], subsampling="444", passes=0,
         pre_resize_scale=None, post_resize_scale=None, post_resize_interp=None,
         quant_tables={}, grid_offset=(0, 0), grid_phase=(0, 0),
         noise_sigma=0.0, true_qf=100, is_control=True, control_kind=kind,

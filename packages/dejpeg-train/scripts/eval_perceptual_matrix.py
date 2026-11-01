@@ -86,7 +86,10 @@ def main():
                 if bgr is None:
                     continue
                 rgb = bgr[:, :, ::-1].copy()
-                ok, enc = cv2.imencode(".jpg", bgr[:, :, ::-1], [int(cv2.IMWRITE_JPEG_QUALITY), qf])
+                # imencode expects BGR (like imread); feeding it the flipped
+                # RGB view encoded red/blue-swapped chroma — a degradation the
+                # app never produces. D8: encode from `bgr` directly.
+                ok, enc = cv2.imencode(".jpg", bgr, [int(cv2.IMWRITE_JPEG_QUALITY), qf])
                 dec_bgr = cv2.imdecode(enc, cv2.IMREAD_COLOR)
                 dec = dec_bgr[:, :, ::-1].copy()
                 jb = enc.tobytes()

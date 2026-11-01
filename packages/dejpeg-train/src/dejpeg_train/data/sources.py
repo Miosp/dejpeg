@@ -102,7 +102,15 @@ SyntheticSource._pick_clean = _pick_clean
 
 
 class DegradedBatchSource(_BaseSource):
-    def __init__(self, shard_glob, source_weights: dict | None = None, **kw):
+    def __init__(self, shard_glob, source_weights: dict | None = None,
+                 sequential: bool = False, **kw):
+        # sequential=True: HDD-friendly streaming. Instead of keeping every tar
+        # open and seeking to a random member per draw (seek storm on spinning
+        # disks), each source instance walks ONE tar at a time in file order:
+        # open tar -> yield members sequentially -> close -> next (weighted)
+        # random tar. Source distribution is preserved per-tar-visit (tar sizes
+        # within the corpus are near-uniform, so per-sample weights hold).
+        # Batches become same-tar correlated (standard WebDataset practice).
         super().__init__(**kw)
         # accept a single glob string or a list of globs (combined into one pool)
         self.shard_globs = [shard_glob] if isinstance(shard_glob, str) else list(shard_glob)
@@ -110,9 +118,14 @@ class DegradedBatchSource(_BaseSource):
         # first '-'); e.g. {"user_raws": 0.35, "div2k": 0.25, ...}. Default (None)
         # is uniform over SOURCES (balanced corpora), NOT over members.
         self.source_weights = source_weights
+        self.sequential = sequential
         self._tars: list[tarfile.TarFile] = []
         self._members: list[tuple[tarfile.TarFile, str]] = []
         self._src_members: dict[str, list] = {}
+        self._paths_by_src: dict[str, list[str]] = {}
+        self._seq_tar: tarfile.TarFile | None = None
+        self._seq_iter = None
+        self._seq_src: str = "?"
         self._last_source: str = "?"
         self._index()
 
@@ -129,35 +142,80 @@ class DegradedBatchSource(_BaseSource):
         self._tars = []
         self._members = []
         self._src_members = {}
+        self._paths_by_src = {}
+        if self._seq_tar is not None:
+            try:
+                self._seq_tar.close()
+            except Exception:
+                pass
+        self._seq_tar = None
+        self._seq_iter = None
         paths = []
         for g in self.shard_globs:
             paths.extend(glob.glob(g))
         for p in sorted(set(paths)):
             src = Path(p).name.split("-")[0]
-            t = tarfile.open(p, "r")
-            self._tars.append(t)
-            bucket = self._src_members.setdefault(src, [])
-            for m in t.getmembers():
-                if m.isfile() and m.name.endswith(".webp"):
-                    entry = (t, m.name)
-                    self._members.append(entry)
-                    bucket.append(entry)
+            self._paths_by_src.setdefault(src, []).append(p)
+            if not self.sequential:
+                t = tarfile.open(p, "r")
+                self._tars.append(t)
+                bucket = self._src_members.setdefault(src, [])
+                for m in t.getmembers():
+                    if m.isfile() and m.name.endswith(".webp"):
+                        entry = (t, m.name)
+                        self._members.append(entry)
+                        bucket.append(entry)
+        if not self._paths_by_src:
+            raise RuntimeError(f"no shards match {self.shard_globs}")
         # resolve weights over the sources actually present
         if self.source_weights:
-            tot = sum(w for s, w in self.source_weights.items() if self._src_members.get(s))
+            tot = sum(w for s, w in self.source_weights.items() if self._paths_by_src.get(s))
             if tot <= 0:
                 raise RuntimeError("source_weights selects no present sources")
             self._cum = []
             acc = 0.0
             for s, w in self.source_weights.items():
-                if self._src_members.get(s) and w > 0:
+                if self._paths_by_src.get(s) and w > 0:
                     acc += w / tot
                     self._cum.append((acc, s))
         else:
-            n = len(self._src_members)
-            self._cum = [((i + 1) / n, s) for i, s in enumerate(sorted(self._src_members))]
+            n = len(self._paths_by_src)
+            self._cum = [((i + 1) / n, s) for i, s in enumerate(sorted(self._paths_by_src))]
+
+    def _next_member(self, rng: random.Random):
+        """Sequential mode: stream one tar at a time in file order (see __init__)."""
+        while True:
+            if self._seq_iter is None:
+                if len(self._cum) == 1:
+                    src = self._cum[0][1]
+                else:
+                    r = rng.random()
+                    src = self._cum[-1][1]
+                    for cut, s in self._cum:
+                        if r < cut:
+                            src = s
+                            break
+                path = rng.choice(self._paths_by_src[src])
+                self._seq_src = src
+                self._last_source = src
+                self._seq_tar = tarfile.open(path, "r")
+                self._seq_iter = iter(self._seq_tar)
+            for m in self._seq_iter:
+                if m.isfile() and m.name.endswith(".webp"):
+                    return m
+            # tar exhausted -> close, pick the next one, loop
+            try:
+                self._seq_tar.close()
+            except Exception:
+                pass
+            self._seq_tar = None
+            self._seq_iter = None
 
     def _pick_clean(self, rng: random.Random) -> np.ndarray:
+        if self.sequential:
+            m = self._next_member(rng)
+            f = self._seq_tar.extractfile(m)
+            return np.array(Image.open(BytesIO(f.read())).convert("RGB"))
         if not self._members:
             raise RuntimeError(f"no shards match {self.shard_globs}")
         if len(self._cum) == 1:

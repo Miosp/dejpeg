@@ -2,26 +2,29 @@
 
 Per sample: clean 640x640 patch -> (jpeg_patch 512x3, clean_target 512x3, record).
 
-Steps: flip/rot90; p=0.35 pre-resize; QF sample; JPEG encode (variable subsampling
-+ quant table + progressive); p=0.4 multi-pass; p=0.5 post-compression resize
+Steps: flip/rot90; optional gray/toned conversion (BEFORE JPEG, D3/G3);
+p=0.35 pre-resize; QF sample; JPEG encode (variable subsampling + quant
+table); p=0.4 multi-pass; p=0.5 post-compression resize
 (clean resized identically so the pair stays aligned); grid-phase crop at random
-(dx,dy) in [0,15]^2; p=0.2 mild noise. Records the FULL degradation record so the
+(dx,dy) in [0,15]^2; p=0.2 mild noise (sigma drawn in [0,1] units, applied in
+0-255 levels). Records the FULL degradation record so the
 oracle (Phase 1.3) can condition on ground truth and blockiness can use the grid
 phase. true_qf is for stratified sampling + auxiliary QF regression ONLY -- never
 a conditioning signal.
 
-Encoder: PIL (libjpeg-turbo), deterministic, supports progressive + custom qtables.
+Encoder: PIL (libjpeg-turbo), deterministic, supports custom qtables.
 simplejpeg / nvjpeg fast paths are benchmarked separately; the sampler's CPU path
 is the Phase-0 reference.
 """
 from __future__ import annotations
 
 import io
+import os
 from dataclasses import dataclass, field
 
 import numpy as np
 import simplejpeg
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 from .jpegmeta import parse_jpeg
 
@@ -33,7 +36,6 @@ INTERP_PIL = {"bilinear": Image.BILINEAR, "bicubic": Image.BICUBIC, "lanczos": I
 class DegradationRecord:
     qf: list[int]
     subsampling: str
-    progressive: bool
     passes: int
     pre_resize_scale: float | None
     post_resize_scale: float | None
@@ -46,6 +48,9 @@ class DegradationRecord:
     table_source: str = "annex_k"
     is_control: bool = False
     control_kind: str | None = None
+    gray: bool = False            # D3: clean image was converted to gray before JPEG
+    toned: bool = False           # G3: partial desaturation applied before JPEG
+    encoder: str = "libjpeg"      # G1: "mozjpeg" = trellis encoder via jpeglib
 
 
 @dataclass
@@ -53,7 +58,8 @@ class DegradationConfig:
     crop_size: int = 512
     p_pre_resize: float = 0.35
     pre_resize_range: tuple[float, float] = (0.5, 1.5)
-    p_progressive: float = 0.1
+    gray_frac: float = 0.0        # D3 fix: true grayscale applied BEFORE degradation
+    p_toned: float = 0.0          # G3: partial desaturation (5-20%) before degradation
     p_multipass: float = 0.4
     multipass_qf_delta: int = 15
     p_post_resize: float = 0.5
@@ -62,8 +68,16 @@ class DegradationConfig:
     noise_sigma_max: float = 5.0 / 255.0
     subsampling_probs: dict = field(default_factory=lambda: {"420": 0.5, "422": 0.25, "444": 0.25})
     table_source_probs: dict = field(
-        default_factory=lambda: {"annex_k": 0.6, "mozjpeg": 0.25, "flat": 0.15}
+        default_factory=lambda: {"annex_k": 0.85, "flat": 0.15}
     )
+    # D2 note: the historical "mozjpeg" label was dead (simplejpeg always emits
+    # Annex-K); it was folded back into annex_k (.6+.25 -> .85). Real encoder
+    # diversity (mozjpeg trellis via jpeglib, jpegli, harvested DQT bank) is the
+    # G1 workstream; mozjpeg_frac below is its first installment.
+    # G1: fraction of samples encoded with real mozjpeg (trellis) via jpeglib
+    # instead of libjpeg-turbo. jpeglib is an optional dep; absent -> falls
+    # back to the simplejpeg path (encoder label stays "libjpeg").
+    mozjpeg_frac: float = 0.0
 
 
 def sample_qf(rng: np.random.Generator, lo: int | None = None, hi: int | None = None) -> int:
@@ -85,20 +99,20 @@ def _flat_qtable(qf: int) -> list[list[int]]:
 
 
 def encode_jpeg(
-    img: Image.Image, qf: int, subsampling: str, table_source: str, progressive: bool
+    img: Image.Image, qf: int, subsampling: str, table_source: str
 ) -> bytes:
     """JPEG-encode.
 
-    Common path (annex_k + baseline, ~85% of samples) goes through simplejpeg
+    Common path (annex_k, ~85% of samples) goes through simplejpeg
     (libjpeg-turbo direct binding) -- robust against the Pillow 12 tiled-JPEG
     regression that crashes on edge-case content. Exotic paths (custom flat
-    qtables, progressive) use PIL, then a real temp file (Pillow's primary path
-    has a fileno), then finally simplejpeg baseline. The emitted table is parsed
-    back from bytes for the record, so a fallback that drops flat/progressive
+    qtables) use PIL, then a real temp file (Pillow's primary path has a
+    fileno), then finally simplejpeg baseline. The emitted table is parsed
+    back from bytes for the record, so a fallback that drops the flat table
     keeps the conditioning consistent.
     """
     arr = np.asarray(img)
-    if table_source != "flat" and not progressive:
+    if table_source != "flat":
         return simplejpeg.encode_jpeg(
             arr, quality=int(qf), colorspace="RGB",
             colorsubsampling=subsampling, fastdct=True,
@@ -107,7 +121,6 @@ def encode_jpeg(
         format="JPEG",
         quality=int(qf),
         subsampling=SUBSAMPLING_PIL[subsampling],
-        progressive=bool(progressive),
         optimize=False,
     )
     if table_source == "flat":
@@ -141,6 +154,43 @@ def encode_jpeg(
 
 def decode_jpeg(b: bytes) -> np.ndarray:
     return np.array(Image.open(io.BytesIO(b)).convert("RGB"))
+
+_MOZJPEG_SAMP = {"420": (2, 2, 1, 1, 1, 1), "422": (2, 1, 1, 1, 1, 1), "444": (1, 1, 1, 1, 1, 1)}
+_mozjpeg_ready = False
+
+
+def _encode_mozjpeg(arr: np.ndarray, qf: int, subsampling: str) -> bytes | None:
+    """Real mozjpeg (trellis) encode via jpeglib; file-based API, tmpfs-backed.
+    Returns None when jpeglib is unavailable -> caller falls back to libjpeg."""
+    global _mozjpeg_ready
+    try:
+        import jpeglib
+    except ImportError:
+        return None
+    try:
+        if not _mozjpeg_ready:
+            jpeglib.version.set("mozjpeg403")
+            _mozjpeg_ready = True
+        import tempfile
+
+        fd, path = tempfile.mkstemp(suffix=".jpg")
+        try:
+            os.close(fd)
+            img = jpeglib.from_spatial(
+                np.ascontiguousarray(arr), in_color_space=jpeglib.JCS_RGB
+            )
+            img.samp_factor = _MOZJPEG_SAMP[subsampling]
+            img.write_spatial(path, qt=int(qf))
+            with open(path, "rb") as f:
+                return f.read()
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+    except Exception:
+        return None
+
 
 
 def _resize_pil(img: Image.Image, scale: float, interp: str) -> Image.Image:
@@ -181,6 +231,17 @@ class DegradationSampler:
         cfg = self.config
         rng = self.rng
         clean_img = Image.fromarray(clean_uint8_hwc)
+        # D3/G3: convert BEFORE degradation so chroma artifacts of gray targets
+        # are physically real (a color JPEG of a gray image has ~0 chroma error).
+        # The old loader averaged the DECODED pair post-JPEG (fake gray).
+        gray = rng.random() < cfg.gray_frac
+        if gray:
+            clean_img = clean_img.convert("L").convert("RGB")
+        toned = rng.random() < cfg.p_toned
+        if toned:
+            # desaturate BY 5-20% (keep 80-95% saturation); near-gray is the
+            # gray_frac branch's job
+            clean_img = ImageEnhance.Color(clean_img).enhance(float(rng.uniform(0.80, 0.95)))
         clean_img = _augment(clean_img, rng)
 
         pre_scale: float | None = None
@@ -195,9 +256,16 @@ class DegradationSampler:
         qfs = [qf]
         subsampling = _sample_categorical(rng, cfg.subsampling_probs)
         table_source = _sample_categorical(rng, cfg.table_source_probs)
-        progressive = rng.random() < cfg.p_progressive
-
-        data = encode_jpeg(clean_img, qf, subsampling, table_source, progressive)
+        use_moz = rng.random() < cfg.mozjpeg_frac
+        if use_moz:
+            mz = _encode_mozjpeg(np.asarray(clean_img), qf, subsampling)
+            if mz is not None:
+                data = mz
+            else:  # jpeglib unavailable -> libjpeg fallback (label reflects it)
+                use_moz = False
+                data = encode_jpeg(clean_img, qf, subsampling, table_source)
+        else:
+            data = encode_jpeg(clean_img, qf, subsampling, table_source)
         arr = decode_jpeg(data)
         passes = 1
 
@@ -212,7 +280,13 @@ class DegradationSampler:
                     )
                 )
                 qfs.append(qp)
-                data = encode_jpeg(Image.fromarray(arr), qp, subsampling, table_source, progressive)
+                data = (
+                    _encode_mozjpeg(arr, qp, subsampling)
+                    if use_moz
+                    else encode_jpeg(Image.fromarray(arr), qp, subsampling, table_source)
+                )
+                if data is None:  # mozjpeg failed mid-sample -> libjpeg this pass
+                    data = encode_jpeg(Image.fromarray(arr), qp, subsampling, table_source)
                 arr = decode_jpeg(data)
                 passes += 1
 
@@ -251,13 +325,14 @@ class DegradationSampler:
         noise_sigma = 0.0
         if rng.random() < cfg.p_noise:
             noise_sigma = float(rng.uniform(0, cfg.noise_sigma_max))
-            jpeg_patch = jpeg_patch + rng.normal(0.0, noise_sigma, jpeg_patch.shape).astype(np.float32)
+            # D1 fix: noise_sigma_max is configured in [0,1] units; scale to
+            # 0-255 levels (the bug applied ~5/255 LEVELS = invisible noise).
+            jpeg_patch = jpeg_patch + rng.normal(0.0, noise_sigma * 255.0, jpeg_patch.shape).astype(np.float32)
             jpeg_patch = np.clip(jpeg_patch, 0, 255)
 
         record = DegradationRecord(
             qf=qfs,
             subsampling=subsampling,
-            progressive=progressive,
             passes=passes,
             pre_resize_scale=pre_scale,
             post_resize_scale=post_scale,
@@ -271,6 +346,9 @@ class DegradationSampler:
             noise_sigma=noise_sigma,
             true_qf=qf,
             table_source=table_source,
+            gray=gray,
+            toned=toned,
+            encoder="mozjpeg" if use_moz else "libjpeg",
         )
         # normalize to [0,1]
         return jpeg_patch / 255.0, clean_target / 255.0, record

@@ -139,6 +139,9 @@ class LPIPSAlex:
     def __init__(self, device: str = "cpu"):
         import lpips
 
+        from ..loss.perceptual import patch_lpips_normalization
+
+        patch_lpips_normalization()  # D6: finite gradients at zero features
         self.device = device
         self.model = lpips.LPIPS(net="alex", verbose=False).to(device).eval()
         for p in self.model.parameters():

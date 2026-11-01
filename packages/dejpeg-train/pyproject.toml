@@ -5,12 +5,12 @@ description = "DeJPEGNet research training pipeline: corpora, degradation synthe
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "torch>=2.5",
-    "torchvision>=0.20",
+    "torch>=2.14",
+    "torchvision>=0.29",
     # IQA baseline metrics: PSNR/SSIM via scikit-image, LPIPS-Alex via
-    # lpips, PSNR-B ported from FBCNN utils_image. pyiqa (MUSIQ/MANIQA/CLIPIQA/
-    # DISTS) DEFERRED to Real-web-500 eval -- its facexlib dep has a broken sdist
-    # (get_hash needs .git); revisit via git-clone + wheel build then.
+    # lpips, PSNR-B ported from FBCNN utils_image. pyiqa lives in dev deps
+    # (E1 panel: TOPIQ-FR, A-FINE); its facexlib dep resolved fine at
+    # >=0.1.16.
     "scikit-image>=0.22",
     # pkg_resources provider for the clip package (pyiqa/clipiqa); setuptools
     # >=80 removed it and uv sync reinstalls latest, so pin here.
@@ -31,6 +31,7 @@ dependencies = [
     "onnx>=1.16",
     "onnxruntime>=1.18",
     "onnxsim>=0.4",
+    "onnxscript>=0.6",
     "onnxconverter-common>=1.14",
     "lion-pytorch>=0.2.5",
     "schedulefree>=1.4.1",
@@ -38,6 +39,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyiqa>=0.1.16",
     "pytest>=8.0",
 ]
 
@@ -49,16 +51,9 @@ build-backend = "hatchling.build"
 packages = ["src/dejpeg_train"]
 
 # Standalone project (NOT a root workspace member): the root workspace pins
-# CPU-only torch for fbcnn, which never touches CUDA. DeJPEGNet trains on GPU,
-# so torch/torchvision come from the cu124 index instead.
-[[tool.uv.index]]
-name = "pytorch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
-explicit = true
-
-[tool.uv.sources]
-torch = { index = "pytorch-cu124" }
-torchvision = { index = "pytorch-cu124" }
+# CPU-only torch for fbcnn, which never touches CUDA. DeJPEGNet trains on GPU;
+# PyPI manylinux wheels bundle CUDA via the nvidia-* deps, so no explicit
+# pytorch index is needed.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

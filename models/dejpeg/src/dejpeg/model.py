@@ -32,7 +32,16 @@ ATTENTIONS = ("lsca", "none", "global")
 
 
 class LayerNorm2d(nn.Module):
-    """Channel-wise LayerNorm for NCHW tensors (NAFNet convention)."""
+    """Channel-wise LayerNorm for NCHW tensors (NAFNet convention).
+
+    FP16-safe by pre-scaling: the input is multiplied by 1/16 before the
+    variance is formed, so squared deviations stay <= ~256 instead of up to
+    ~65k levels^2, which overflows IEEE half (max 65504) on saturated blocks.
+    eps is pre-scaled by the same factor squared, making the output exactly
+    the unscaled formula (D5 fix, report snippet S2).
+    """
+
+    PRESCALE = 1.0 / 16.0
 
     def __init__(self, channels: int, eps: float = 1e-6):
         super().__init__()
@@ -41,9 +50,10 @@ class LayerNorm2d(nn.Module):
         self.eps = eps
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        u = x.mean(dim=1, keepdim=True)
-        d = (x - u).pow(2).mean(dim=1, keepdim=True)
-        norm = (x - u) / torch.sqrt(d + self.eps)
+        p = x * self.PRESCALE
+        u = p.mean(dim=1, keepdim=True)
+        d = (p - u).pow(2).mean(dim=1, keepdim=True)
+        norm = (p - u) / torch.sqrt(d + self.eps * self.PRESCALE ** 2)
         return norm * self.weight.view(1, -1, 1, 1) + self.bias.view(1, -1, 1, 1)
 
 
@@ -104,6 +114,50 @@ class LSCA(nn.Module):
         pooled = self.pool(xp) / self.pool(mask)
         p = F.interpolate(self.conv(pooled), size=(h, w), mode="nearest")
         return x * p
+
+
+class SlidingLSCA(nn.Module):
+    """Stride-1 box-mean channel attention: the shift-equivariant LSCA.
+
+    Same parameters as :class:`LSCA` (one 1x1 conv) and the same state-dict
+    keys: ``conv(mean(x)) == mean(conv(x))`` because the conv is affine and
+    the box weights sum to 1, so anchored-LSCA checkpoints load directly.
+    Unlike the anchored pool, this variant is invariant to the tile phase --
+    a window straddling a tile border sees the same content regardless of
+    where the grid origin fell -- which is what makes misaligned last tiles
+    safe (D7/A1). Borders divide by the valid-count map, not the window area.
+    """
+
+    def __init__(self, channels: int, window: int = 32):
+        super().__init__()
+        self.window = window
+        self.conv = nn.Conv2d(channels, channels, 1)
+
+    def _box(self, t: torch.Tensor) -> torch.Tensor:
+        w = self.window
+        lo, hi = (w - 1) // 2, w // 2
+        t = F.avg_pool2d(F.pad(t, (lo, hi, 0, 0)), (1, w), stride=1)
+        return F.avg_pool2d(F.pad(t, (0, 0, lo, hi)), (w, 1), stride=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mean = self._box(x) / self._box(torch.ones_like(x[:, :1]))
+        return x * self.conv(mean)
+
+
+def swap_lsca_sliding(model: nn.Module) -> nn.Module:
+    """Replace every :class:`LSCA` with :class:`SlidingLSCA` in place.
+
+    Used at test/export time on anchored-LSCA checkpoints: parameters carry
+    over because the state-dict keys (``conv.{weight,bias}``) are identical.
+    """
+    for name, parent in model.named_children():
+        if isinstance(parent, LSCA):
+            sliding = SlidingLSCA(parent.conv.in_channels, getattr(parent, "window", parent.pool.kernel_size))
+            sliding.conv.load_state_dict(parent.conv.state_dict())
+            setattr(model, name, sliding)
+        else:
+            swap_lsca_sliding(parent)
+    return model
 
 
 class GlobalSCA(nn.Module):

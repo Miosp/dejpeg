@@ -99,9 +99,10 @@ understand. Architecture:
 
 - **NAFNet-style blocks**: LayerNorm → 1×1 conv → depthwise 3×3 → SimpleGate
   (channel split + multiply as the only nonlinearity) → channel attention.
-- **Local channel attention**: gates pool over fixed 32px windows, never the
-  whole image. Changing pixels far away cannot affect nearby outputs
-  (enforced by test), which is what makes tiled large-image inference
+- **Local channel attention**: gates pool over sliding 32px windows (stride-1
+  box mean), never the whole image. Changing pixels far away cannot affect
+  nearby outputs (enforced by test), and the gate is exactly shift-equivariant
+  (tile-phase free), which is what makes tiled large-image inference
   consistent.
 - **Reparameterizable depthwise convs**: parallel {3×3, 1×1, identity} branches
   during training fold into one depthwise conv for deployment.

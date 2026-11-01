@@ -172,7 +172,7 @@ def main():
         fused = fuse_for_export(gen)
         sample = (torch.rand(1, 3, PATCH, PATCH, device=DEV, memory_format=torch.channels_last),
                   torch.rand(1, 97, device=DEV))
-        export_onnx(fused, sample, str(OUT / "student_p2v2_fp16.onnx"), opset=17, simplify=True, fp16=True)
+        export_onnx(fused, sample, str(OUT / "student_p2v2_fp16.onnx"), opset=18, simplify=True, fp16=True)
         print("[p2v2] exported student_p2v2_fp16.onnx", flush=True)
     print(f"[p2v2] DONE in {(time.time()-t0)/60:.1f}min  -> {OUT}", flush=True)
 

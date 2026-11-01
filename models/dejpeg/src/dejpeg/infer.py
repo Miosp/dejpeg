@@ -1,8 +1,8 @@
 """Inference: load the released weights and restore JPEG-decoded images.
 
 The model is fully convolutional and tile-invariant, so any input size works:
-the image is reflect-padded to a multiple of 32 (the attention window), restored
-in a single forward pass, and cropped back.
+the image is reflect-padded to a multiple of 32 (the downsampling alignment),
+restored in a single forward pass, and cropped back.
 
 An optional mild unsharp mask (``sharpness``) is applied after restoration. A
 small amount measurably improves DISTS/LPIPS/no-reference scores beyond the raw
@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from .model import DeJPEGNet
+from .model import DeJPEGNet, swap_lsca_sliding
 
 PAD_MULTIPLE = 32
 DEFAULT_SHARPNESS = 0.10
@@ -67,11 +67,18 @@ def resolve_weights() -> Path:
 
 
 def load_model(weights_path: str | Path | None = None, device: str = "cpu") -> DeJPEGNet:
-    """Build the network from the checkpoint metadata and load FP16 weights as FP32."""
+    """Build the network from the checkpoint metadata and load FP16 weights as FP32.
+
+    LSCA modules are swapped for the shift-equivariant :class:`SlidingLSCA`
+    (state-dict compatible, D7/A1): the deployed tiler grids tiles on the
+    step lattice and misaligned phases only stay tile-invariant with the
+    sliding window.
+    """
     path = Path(weights_path) if weights_path else resolve_weights()
     blob = torch.load(path, map_location="cpu", weights_only=True)
     model = DeJPEGNet(**blob.get("config", {}))
     model.load_state_dict({k: v.float() for k, v in blob["state_dict"].items()})
+    swap_lsca_sliding(model)
     return model.to(device).eval()
 
 

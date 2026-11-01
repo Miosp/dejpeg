@@ -69,10 +69,12 @@ class PatchStream(IterableDataset):
                 jpeg = arr.astype(np.float32) / 255.0
                 target = jpeg
             else:
-                jpeg, target = sampler.sample(arr)
+                # real gray BEFORE JPEG (D3 fix): a color JPEG of a gray image
+                # has ~0 chroma error; averaging the decoded pair afterwards
+                # produced fake-gray targets the net never needed to restore
                 if rng.random() < self.gray_frac:
-                    jpeg = np.repeat(jpeg.mean(axis=2, keepdims=True), 3, axis=2)
-                    target = np.repeat(target.mean(axis=2, keepdims=True), 3, axis=2)
+                    arr = np.asarray(img.convert("L").convert("RGB"))
+                jpeg, target = sampler.sample(arr)
 
             h, w = jpeg.shape[:2]
             dy, dx = rng.randrange(0, h - self.patch + 1), rng.randrange(0, w - self.patch + 1)

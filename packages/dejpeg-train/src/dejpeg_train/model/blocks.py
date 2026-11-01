@@ -14,7 +14,16 @@ ATTENTIONS = ("lsca", "span", "none", "global")
 
 
 class LayerNorm2d(nn.Module):
-    """Channel-wise LayerNorm for NCHW (NAFNet convention)."""
+    """Channel-wise LayerNorm for NCHW (NAFNet convention).
+
+    FP16-safe by pre-scaling: the input is multiplied by 1/16 before the
+    variance is formed, so squared deviations stay <= ~256 instead of up to
+    ~65k levels^2, which overflows IEEE half (max 65504) on saturated blocks.
+    eps is pre-scaled by the same factor squared, making the output exactly
+    the unscaled formula (D5 fix, report snippet S2).
+    """
+
+    PRESCALE = 1.0 / 16.0
 
     def __init__(self, channels: int, eps: float = 1e-6):
         super().__init__()
@@ -23,9 +32,10 @@ class LayerNorm2d(nn.Module):
         self.eps = eps
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        u = x.mean(dim=1, keepdim=True)
-        d = (x - u).pow(2).mean(dim=1, keepdim=True)
-        x = (x - u) / torch.sqrt(d + self.eps)
+        p = x * self.PRESCALE
+        u = p.mean(dim=1, keepdim=True)
+        d = (p - u).pow(2).mean(dim=1, keepdim=True)
+        x = (p - u) / torch.sqrt(d + self.eps * self.PRESCALE ** 2)
         return x * self.weight.view(1, -1, 1, 1) + self.bias.view(1, -1, 1, 1)
 
 
@@ -84,6 +94,44 @@ class LSCA(nn.Module):
         p = self.conv(p)
         p = F.interpolate(p, size=(h, w), mode="nearest")
         return x * p
+
+
+class SlidingLSCA(nn.Module):
+    """Stride-1 box-mean channel attention: the shift-equivariant LSCA (D7/A1).
+
+    Same parameters and state-dict keys as :class:`LSCA` (one 1x1 conv);
+    ``conv(mean(x)) == mean(conv(x))`` because the conv is affine and the box
+    weights sum to 1, so anchored checkpoints load directly. Invariant to tile
+    phase, unlike the anchored pool. Borders divide by the valid-count map.
+    Fine-tune from anchored checkpoints with this swap once stable.
+    """
+
+    def __init__(self, channels: int, window: int = 32):
+        super().__init__()
+        self.window = window
+        self.conv = nn.Conv2d(channels, channels, 1)
+
+    def _box(self, t: torch.Tensor) -> torch.Tensor:
+        w = self.window
+        lo, hi = (w - 1) // 2, w // 2
+        t = F.avg_pool2d(F.pad(t, (lo, hi, 0, 0)), (1, w), stride=1)
+        return F.avg_pool2d(F.pad(t, (0, 0, lo, hi)), (w, 1), stride=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mean = self._box(x) / self._box(torch.ones_like(x[:, :1]))
+        return x * self.conv(mean)
+
+
+def swap_lsca_sliding(model: nn.Module) -> nn.Module:
+    """Replace every :class:`LSCA` with :class:`SlidingLSCA` in place."""
+    for name, parent in model.named_children():
+        if isinstance(parent, LSCA):
+            sliding = SlidingLSCA(parent.conv.in_channels, parent.window)
+            sliding.conv.load_state_dict(parent.conv.state_dict())
+            setattr(model, name, sliding)
+        else:
+            swap_lsca_sliding(parent)
+    return model
 
 
 class GlobalSCA(nn.Module):

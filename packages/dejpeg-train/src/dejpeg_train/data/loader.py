@@ -18,9 +18,10 @@ import random
 from pathlib import Path
 
 import torch
-from torch.utils.data import IterableDataset
+from torch.utils.data import DataLoader, IterableDataset
 
 from ..model.conditioning import quant_table_to_condition
+from .degrade import DegradationConfig
 from .sources import DegradedBatchSource
 
 
@@ -41,7 +42,7 @@ class DegradeIterableDataset(IterableDataset):
     """
 
     def __init__(self, shards, patch: int = 256, seed: int = 0, p_control: float = 0.1,
-                 gray_frac: float = 0.0, **src_kw):
+                 **src_kw):
         super().__init__()
         if isinstance(shards, (str, Path)):
             self.shards = [str(shards)]
@@ -50,7 +51,6 @@ class DegradeIterableDataset(IterableDataset):
         self.patch = patch
         self.seed = seed
         self.p_control = p_control
-        self.gray_frac = gray_frac
         self.src_kw = src_kw
         self._src = None  # lazy, per-worker
 
@@ -71,9 +71,6 @@ class DegradeIterableDataset(IterableDataset):
             s = self._src.draw_dist(rng)
             j = torch.from_numpy(s["jpeg"]).permute(2, 0, 1)
             t = torch.from_numpy(s["target"]).permute(2, 0, 1)
-            if self.gray_frac > 0 and rng.random() < self.gray_frac:
-                j = j.mean(dim=0, keepdim=True).expand_as(j).contiguous()
-                t = t.mean(dim=0, keepdim=True).expand_as(t).contiguous()
             h, w = j.shape[-2:]
             if h < p or w < p:
                 continue  # degrade guarantees >= CROP(512), but stay defensive
@@ -96,15 +93,26 @@ def make_dataloader(
     prefetch_factor: int = 4,
     source_weights: dict | None = None,
     gray_frac: float = 0.0,
+    mozjpeg_frac: float = 0.0,
+    sequential: bool = False,
 ):
     """Process-parallel degrade loader. prefetch_factor buffers batches ahead of the
     GPU; persistent_workers avoids per-epoch fork cost; drop_last keeps shapes fixed
     (so torch.compile never recompiles mid-run). source_weights: per-corpus sampling
     weights (Phase 0.7 H4) — keys are shard filename prefixes (div2k, flickr2k,
-    liu4k_v2, user_raws). gray_frac: probability of converting the drawn pair to
-    grayscale-replicated (Phase 2b chroma-anchor)."""
+    liu4k_v2, user_raws). gray_frac: probability the clean image is converted to
+    true grayscale BEFORE JPEG degradation (D3 fix -- handled inside the degrade
+    sampler; the old code averaged the decoded pair post-JPEG, which is fake
+    gray). mozjpeg_frac: probability the JPEG passes use real mozjpeg trellis
+    (G1) instead of libjpeg-turbo. sequential: stream shards tar-by-tar in file
+    order instead of random member access — required for spinning-disk (HDD)
+    shard stores, where random access across hundreds of open tars collapses to
+    a seek storm."""
     ds = DegradeIterableDataset(shards, patch=patch, seed=seed,
-                                source_weights=source_weights, gray_frac=gray_frac)
+                                source_weights=source_weights,
+                                degrade_config=DegradationConfig(
+                                    gray_frac=gray_frac, mozjpeg_frac=mozjpeg_frac),
+                                sequential=sequential)
     return torch.utils.data.DataLoader(
         ds,
         batch_size=batch_size,

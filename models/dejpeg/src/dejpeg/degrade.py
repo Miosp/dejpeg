@@ -6,7 +6,7 @@ Starting from a clean image, sample a realistic degradation and emit an aligned
 1. random flip/rotation;
 2. with p=0.35, a pre-resize (simulates images that were resampled before saving);
 3. sample a quality factor -- 60% in [30, 75], 20% in [1, 30), 20% in [75, 100] --
-   plus chroma subsampling {4:2:0 50%, 4:2:2 25%, 4:4:4 25%} and p=0.10 progressive;
+   plus chroma subsampling {4:2:0 50%, 4:2:2 25%, 4:4:4 25%};
 4. with p=0.40, 1-2 extra JPEG passes at nearby qualities (generation loss);
 5. with p=0.50, a post-compression resize applied identically to both pair members;
 6. with p=0.20, mild Gaussian noise on the degraded member only.
@@ -30,7 +30,6 @@ class DegradationConfig:
     crop_size: int = 512
     p_pre_resize: float = 0.35
     pre_resize_range: tuple[float, float] = (0.5, 1.5)
-    p_progressive: float = 0.10
     p_multipass: float = 0.40
     multipass_qf_delta: int = 15
     p_post_resize: float = 0.50
@@ -81,12 +80,11 @@ class DegradationSampler:
             int(rng.choice(len(cfg.subsampling_probs), p=np.array(list(cfg.subsampling_probs.values()))
                            / sum(cfg.subsampling_probs.values())))
         ]
-        progressive = rng.random() < cfg.p_progressive
-        arr = self._jpeg_roundtrip(clean, qf, subsampling, progressive)
+        arr = self._jpeg_roundtrip(clean, qf, subsampling)
         for _ in range(int(rng.integers(1, 3)) if rng.random() < cfg.p_multipass else 0):
             delta = int(rng.integers(-cfg.multipass_qf_delta, cfg.multipass_qf_delta + 1))
             qp = int(np.clip(qf + delta, 1, 100))
-            arr = self._jpeg_roundtrip(Image.fromarray(arr), qp, subsampling, progressive)
+            arr = self._jpeg_roundtrip(Image.fromarray(arr), qp, subsampling)
 
         if rng.random() < cfg.p_post_resize:
             h, w = arr.shape[:2]
@@ -106,7 +104,7 @@ class DegradationSampler:
         jpeg_arr = arr.astype(np.float32)
         if rng.random() < cfg.p_noise:
             sigma = float(rng.uniform(0, cfg.noise_sigma_max))
-            jpeg_arr = np.clip(jpeg_arr + rng.normal(0, sigma * 255, jpeg_arr.shape), 0, 255)
+            jpeg_arr = np.clip(jpeg_arr + rng.normal(0, sigma * 255, jpeg_arr.shape).astype(np.float32), 0, 255).astype(np.float32)
 
         # aligned crop to exactly crop_size; the small [0,15] jitter varies the
         # 8x8 grid phase the network sees, like real-world crops do
@@ -119,9 +117,8 @@ class DegradationSampler:
         return jpeg_arr[box] / 255.0, np.asarray(clean, dtype=np.float32)[box] / 255.0
 
     @staticmethod
-    def _jpeg_roundtrip(img: Image.Image, qf: int, subsampling: str, progressive: bool) -> np.ndarray:
+    def _jpeg_roundtrip(img: Image.Image, qf: int, subsampling: str) -> np.ndarray:
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=int(qf), subsampling=SUBSAMPLING_PIL[subsampling],
-                 progressive=progressive)
+        img.save(buf, format="JPEG", quality=int(qf), subsampling=SUBSAMPLING_PIL[subsampling])
         buf.seek(0)
         return np.asarray(Image.open(buf).convert("RGB"))

@@ -38,7 +38,7 @@ def export_onnx(
     sample_inputs,
     path: str,
     *,
-    opset: int = 17,
+    opset: int = 18,  # torch>=2.14 dynamo path cannot downconvert to 17
     simplify: bool = True,
     fp16: bool = False,
     dynamic: bool = False,
@@ -69,6 +69,7 @@ def export_onnx(
         _simplify(path)
     if fp16:
         _to_fp16(path)
+    _reinline_external_data(path)
     return path
 
 
@@ -89,3 +90,21 @@ def _to_fp16(path: str) -> None:
     model = onnx.load(path)
     model_fp16 = float16.convert_float_to_float16(model, keep_io_types=True)
     onnx.save(model_fp16, path)
+
+
+def _reinline_external_data(path: str) -> None:
+    """torch>=2.14 exports initializers >2GB-total to a `.data` sidecar; the
+    deployed artifact must stay a single file (web fetches one URL)."""
+    import os
+
+    import onnx
+
+    sidecar = path + ".data"
+    if not os.path.exists(sidecar):
+        return
+    model = onnx.load(path, load_external_data=True)
+    for init in model.graph.initializer:
+        init.data_location = onnx.TensorProto.DEFAULT
+        init.ClearField("external_data")
+    onnx.save_model(model, path)
+    os.unlink(sidecar)

@@ -21,5 +21,5 @@ n = sum(p.numel() for p in fused.parameters())
 tag = Path(CKPT).stem
 dst = Path(OUT) / f"{tag}_fp16.onnx"
 sample = (torch.rand(1, 3, 256, 256), torch.rand(1, 97))
-export_onnx(fused, sample, str(dst), opset=17, simplify=True, fp16=True)
+export_onnx(fused, sample, str(dst), opset=18, simplify=True, fp16=True)
 print(f"[export] {tag}: params={n:,} fp16_bytes~{n*2/1e6:.2f}MB -> {dst}")

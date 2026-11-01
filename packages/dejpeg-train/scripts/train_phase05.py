@@ -173,11 +173,11 @@ def export_graphs(model: torch.nn.Module) -> None:
     fused = fuse_for_export(model).cpu().eval()
     tile = torch.randn(1, 3, PATCH, PATCH)
     ctx = torch.randn(1, 97)
-    export_onnx(fused, (tile, ctx), OUT / "student_fp16.onnx", opset=17, simplify=True, fp16=True)
+    export_onnx(fused, (tile, ctx), OUT / "student_fp16.onnx", opset=18, simplify=True, fp16=True)
     print(f"[info] student FP16 ONNX -> {OUT/'student_fp16.onnx'}", flush=True)
     enc = DeJPEGNetE().cpu().eval()
     img = torch.randn(1, 3, 256, 256)
-    export_onnx(enc, (img,), OUT / "degencoder_fp16.onnx", opset=17, simplify=True, fp16=True)
+    export_onnx(enc, (img,), OUT / "degencoder_fp16.onnx", opset=18, simplify=True, fp16=True)
     print(f"[info] deg-encoder FP16 ONNX -> {OUT/'degencoder_fp16.onnx'}", flush=True)
 
 

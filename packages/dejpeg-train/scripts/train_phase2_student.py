@@ -27,6 +27,7 @@ import torch.nn.functional as F
 from dejpeg_train.data.jpegmeta import parse_jpeg
 from dejpeg_train.data.loader import make_dataloader
 from dejpeg_train.eval.metrics import psnr, psnr_b
+from dejpeg_train.loss.noise import flat_hf_loss, peak_bin_loss, ssim_loss
 from dejpeg_train.loss.perceptual import PerceptualLoss
 from dejpeg_train.model.student import DeJPEGNetS, build_ctx
 from dejpeg_train.paths import phase_dir, shards_dir, testsets_dir
@@ -47,7 +48,17 @@ SHARDS = [str(shards_dir() / f"{s}-*.tar")
 WEIGHTS = {"user_raws": 0.35, "div2k": 0.25, "flickr2k": 0.20, "liu4k_v2": 0.20}
 CLASSIC5 = testsets_dir("Classic5")
 LIVE1 = testsets_dir("LIVE1_color")
-BATCH, ACCUM, WORKERS, PATCH = 8, 2, 6, 256
+BATCH = int(os.environ.get("BATCH", "8"))
+ACCUM = int(os.environ.get("ACCUM", "2"))
+PATCH = int(os.environ.get("PATCH", "256"))
+LAMBDA_L2 = float(os.environ.get("LAMBDA_L2", "0"))
+CUTBLUR_P = float(os.environ.get("CUTBLUR_P", "0"))
+WORKERS = int(os.environ.get("WORKERS", "6"))
+SEQUENTIAL = os.environ.get("SEQUENTIAL", "1") == "1"  # HDD-friendly shard streaming
+LAMBDA_LPIPS = float(os.environ.get("LAMBDA_LPIPS", "1.0"))
+LAMBDA_SSIM = float(os.environ.get("LAMBDA_SSIM", "0"))
+LAMBDA_FLATHF = float(os.environ.get("LAMBDA_FLATHF", "0"))
+LAMBDA_PEAK = float(os.environ.get("LAMBDA_PEAK", "0"))
 LR, WD, WARMUP, GRAD_CLIP = float(os.environ.get("LR", "1e-3")), 1e-3, int(os.environ.get("WARMUP", "2000")), 1.0
 LOG_EVERY = 500
 DEV = "cuda"
@@ -90,7 +101,8 @@ def report(model, tag):
 
 
 def main():
-    set_seed(0)
+    SEED = int(os.environ.get("SEED", "0"))
+    set_seed(SEED)
     gen = DeJPEGNetS(cond_mode="none", c0=int(os.environ.get("C0", "30"))).to(DEV, memory_format=torch.channels_last).train()
     gen_fwd = prepare_model_for_training(gen)
     opt = torch.optim.AdamW(gen.parameters(), lr=LR, weight_decay=WD, betas=(0.9, 0.9), fused=True)
@@ -98,8 +110,10 @@ def main():
     percept = PerceptualLoss(net="vgg", crop=128).to(DEV).eval()
     lr_at = cosine_lr(LR, ITERS, warmup=WARMUP)
     loader = make_dataloader(SHARDS, batch_size=BATCH, num_workers=WORKERS, patch=PATCH,
-                             seed=42, source_weights=WEIGHTS,
-                             gray_frac=float(os.environ.get("GRAY_FRAC", "0")))
+                             seed=42 + SEED, source_weights=WEIGHTS,
+                             gray_frac=float(os.environ.get("GRAY_FRAC", "0")),
+                             mozjpeg_frac=float(os.environ.get("MOZJPEG_FRAC", "0")),
+                             sequential=SEQUENTIAL)
     it = iter(loader)
     start = 0
     if RESUME:
@@ -112,7 +126,8 @@ def main():
         start = int(os.environ.get("STEP0", ck.get("step", 0)))
         print(f"[p2] resumed from {RESUME} at step {start}", flush=True)
     n_params = sum(p.numel() for p in gen.parameters())
-    print(f"[p2] params={n_params:,} iters={ITERS} accum={ACCUM} weights={WEIGHTS}", flush=True)
+    print(f"[p2] params={n_params:,} iters={ITERS} accum={ACCUM} weights={WEIGHTS} "
+          f"seed={SEED} lam: lpips={LAMBDA_LPIPS} ssim={LAMBDA_SSIM} flathf={LAMBDA_FLATHF} peak={LAMBDA_PEAK}", flush=True)
 
     t0 = time.time()
     for step in range(start, ITERS):
@@ -127,9 +142,40 @@ def main():
             ctx = build_ctx(c65, torch.zeros(len(c65), 32)).to(DEV, non_blocking=True)
             with bf16_autocast(True, device_type="cuda"):
                 pred = gen_fwd(jpeg, ctx)
-                l1 = (pred.float() - target).abs().mean()
-                lp = percept(pred.float(), target)
-                (l1 + lp).div(ACCUM).backward()
+            with torch.autocast(device_type="cuda", enabled=False):
+                p32 = pred.float()
+                lp = percept(p32, target)
+                # X5 CutBlur (report 6.7): paste target boxes into prediction so the
+                # network sees real high-frequency content inside its own output
+                # distribution; boxes land on the 8px JPEG grid, side uniform in
+                # [patch/8, patch/2], per-sample.
+                if CUTBLUR_P:
+                    n, _, h, w = p32.shape
+                    for bi in range(n):
+                        if torch.rand(()).item() < CUTBLUR_P:
+                            s = int(round(float(torch.empty(()).uniform_(h / 8, h / 2)) / 8)) * 8
+                            s = max(8, min(s, h - 8))
+                            y0 = int(torch.randint(0, h - s + 1, ())) // 8 * 8
+                            x0 = int(torch.randint(0, w - s + 1, ())) // 8 * 8
+                            p32[bi, :, y0:y0 + s, x0:x0 + s] = target[bi, :, y0:y0 + s, x0:x0 + s]
+                l1 = (p32 - target).abs().mean()
+                loss = l1 + LAMBDA_L2 * (p32 - target).pow(2).mean() + LAMBDA_LPIPS * lp
+                if LAMBDA_SSIM:
+                    ss = ssim_loss(p32, target)
+                    loss = loss + LAMBDA_SSIM * ss
+                else:
+                    ss = torch.zeros((), device=DEV)
+                if LAMBDA_FLATHF:
+                    fh = flat_hf_loss(p32, target)
+                    loss = loss + LAMBDA_FLATHF * fh
+                else:
+                    fh = torch.zeros((), device=DEV)
+                if LAMBDA_PEAK:
+                    pk = peak_bin_loss(p32, target)
+                    loss = loss + LAMBDA_PEAK * pk
+                else:
+                    pk = torch.zeros((), device=DEV)
+                loss.div(ACCUM).backward()
         clip_grad_norm(gen.parameters(), GRAD_CLIP)
         opt.step()
         ema.update(gen)
@@ -137,12 +183,15 @@ def main():
         if step % LOG_EVERY == 0 or step == ITERS - 1:
             eta_h = (ITERS - step - 1) * (el / max(1, step - start + 1)) / 3600
             print(f"[p2] it={step:6d} lr={g:.2e} l1={l1.item():.4f} lpips={lp.item():.4f} "
+                  f"ssim={ss.item():.4f} flathf={fh.item():.6f} peak={pk.item():.6f} "
                   f"{1000*el/max(1,step-start+1):.0f}ms/it eta {eta_h:.1f}h", flush=True)
         if step > start and step % CKPT_EVERY == 0:
             with ema.swap(gen):
                 save_checkpoint(OUT / "student_p2_latest.pt", model=gen, ema=ema,
                                 optimizer=opt, disc=None, step=step, manifest_hash="",
-                                config={"phase": "2", "recipe": "cond-none C0=30 L1+LPIPS eff16"},
+                                config={"phase": "2", "recipe": f"cond-none C0={int(os.environ.get('C0', '30'))} "
+                                                                  f"lam_lpips={LAMBDA_LPIPS} lam_ssim={LAMBDA_SSIM} "
+                                                                  f"lam_flathf={LAMBDA_FLATHF} lam_peak={LAMBDA_PEAK} seed={SEED}"},
                                 rng_states=None)
         if step > start and step % EVAL_EVERY == 0:
             with ema.swap(gen):
@@ -156,7 +205,7 @@ def main():
         fused = fuse_for_export(gen)
         sample = (torch.rand(1, 3, PATCH, PATCH, device=DEV).contiguous(memory_format=torch.channels_last),
                   torch.zeros(1, 97, device=DEV))
-        export_onnx(fused, sample, str(OUT / "student_p2_fp16.onnx"), opset=17, simplify=True, fp16=True)
+        export_onnx(fused, sample, str(OUT / "student_p2_fp16.onnx"), opset=18, simplify=True, fp16=True)
         print("[p2] exported student_p2_fp16.onnx", flush=True)
     print(f"[p2] DONE {(time.time()-t0)/3600:.2f}h -> {OUT}", flush=True)
 
