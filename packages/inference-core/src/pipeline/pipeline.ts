@@ -144,7 +144,11 @@ export function processImage(
         for (const v of out.data) {
           if (!Number.isFinite(v)) {
             return yield* Effect.fail(
-              new InvalidOutput({ modelId: def.id, reason: "nan" }),
+              new InvalidOutput({
+                modelId: def.id,
+                reason: "nan",
+                details: `tile ${first.index + 1} of ${plan.tiles.length}`,
+              }),
             );
           }
         }

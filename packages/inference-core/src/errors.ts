@@ -102,3 +102,52 @@ export type ModelError =
   | NoModelLoaded
   | UnknownError
   | ClientBusy;
+
+function causeText(cause: unknown): string {
+  if (cause === undefined || cause === null) return "";
+  const text = cause instanceof Error ? cause.message : String(cause);
+  return text && text !== "{}" && text !== "[object Object]" ? `: ${text}` : "";
+}
+
+/** A sentence for the person using the app. Never empty, whatever `e` is. */
+export function describeError(e: unknown): string {
+  const err = e as ModelError & { cause?: unknown };
+  switch (err?._tag) {
+    case "NetworkError":
+      return `Could not download the model (status ${err.status ?? "?"}).`;
+    case "BackendUnavailable":
+      return `No suitable backend (${err.backend})${causeText(err.cause)}.`;
+    case "UnsupportedOp":
+      return `${err.modelId} needs the ${err.opType} operation, which this browser cannot run.`;
+    case "TileAllocationFailure":
+      return `Ran out of memory at tile size ${err.attemptedSize}${causeText(err.cause)}.`;
+    case "TileFloorExceeded":
+      return `${err.modelId} ran out of memory even at the smallest tile size (${err.floor}).`;
+    case "ImageDecodeError":
+      return `Could not decode ${err.filename}.`;
+    case "CanvasCapExceeded":
+      return `This image (${err.width}x${err.height}) is too large for this browser.`;
+    case "WorkerCrash":
+      return `The processing worker crashed${causeText(err.cause)}.`;
+    case "InvalidOutput":
+      return err.reason === "shape"
+        ? `${err.modelId} returned output of the wrong shape${err.details ? `: ${err.details}` : ""}.`
+        : `${err.modelId} produced invalid values on this device${err.details ? ` (${err.details})` : ""}. Try another model.`;
+    case "Cancelled":
+      return "Cancelled.";
+    case "NoModelLoaded":
+      return "No model is loaded yet. Pick a model first.";
+    case "ClientBusy":
+      return "Still working on the previous request.";
+  }
+  const message = e instanceof Error ? e.message : e == null ? "" : String(e);
+  return message || "Something went wrong, but no reason was reported.";
+}
+
+/** The technical facts to include in a bug report: error type, model, reason, device. */
+export function errorSummary(e: unknown): string {
+  const err = (e ?? {}) as { _tag?: string; name?: string; modelId?: string; reason?: string; backend?: string; device?: string };
+  return [err._tag ?? err.name ?? "Unknown", err.reason, err.modelId, err.device ?? err.backend]
+    .filter(Boolean)
+    .join(" | ");
+}

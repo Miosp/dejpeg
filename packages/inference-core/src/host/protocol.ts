@@ -90,5 +90,10 @@ export function serializeError(e: ModelError | Error): SerializedError {
     }
   }
   if (e.message) out.message = e.message;
+  // Not enumerable on Effect's errors, and an Error would serialize to "{}".
+  const cause = (e as { cause?: unknown }).cause;
+  if (cause !== undefined && cause !== null) {
+    out.cause = cause instanceof Error ? cause.message : String(cause);
+  }
   return out;
 }

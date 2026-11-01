@@ -59,17 +59,21 @@
     };
   }
 
-  function pinchMidpoint(): { x: number; y: number } {
-    const mid = pinchClientMidpoint();
-    // Anchor in the frame of the half-canvas under the pinch (split mode)
-    const el = document.elementFromPoint(mid.x, mid.y);
+  /** A client point in the frame of the canvas under it, which in split mode is one half. */
+  function canvasPoint(clientX: number, clientY: number): { x: number; y: number } {
+    const el = document.elementFromPoint(clientX, clientY);
     if (el instanceof HTMLCanvasElement) {
       const r = el.getBoundingClientRect();
-      return { x: mid.x - r.left, y: mid.y - r.top };
+      return { x: clientX - r.left, y: clientY - r.top };
     }
     const rect = container?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    return { x: mid.x - rect.left, y: mid.y - rect.top };
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  function pinchMidpoint(): { x: number; y: number } {
+    const mid = pinchClientMidpoint();
+    return canvasPoint(mid.x, mid.y);
   }
 
   function sizeAndFit() {
@@ -253,10 +257,7 @@
     e.preventDefault();
     if (pointers.size > 0) return;
     if (coarsePointer && !e.ctrlKey) return;
-    const rect = container?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = canvasPoint(e.clientX, e.clientY);
     const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
     viewport.smoothZoom(x, y, factor);
   }

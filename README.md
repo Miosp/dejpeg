@@ -11,7 +11,7 @@ primary, WASM fallback), backed by a compact custom-trained model.
 | Model | Size | Best for |
 |---|---|---|
 | DeJPEGNet v2 (default) | 15.4 MB | Staying close to the original: beats FBCNN on PSNR, LPIPS and DISTS at every tested quality |
-| DeJPEGNet v2 + Texture | 15.5 MB | v2 with a slider for added grain, which is synthetic and not recovered detail |
+| DeJPEGNet v2 + Texture | 15.3 MB | v2 with a slider for added grain, which is synthetic and not recovered detail |
 | DeJPEGNet v1 | 5.4 MB | Smaller download, tuned for perceptual quality |
 
 LIVE1, PSNR (dB) / LPIPS / DISTS, one pass, quality unknown to the model:

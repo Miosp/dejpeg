@@ -20,6 +20,9 @@ export interface InferenceEngine {
   /** Backend in use after init; surfaces to UI via progress events. */
   readonly backend: Backend;
 
+  /** The GPU in use, as far as the browser says, for error reports. */
+  readonly deviceInfo?: string | undefined;
+
   /**
    * Load the model from already-fetched bytes and create the inference
    * session. The Host owns fetching (via ModelCache); engines must not

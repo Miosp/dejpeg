@@ -55,14 +55,32 @@ export interface OnnxEngineOptions {
 const DEBUG_LOG =
   typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
 
+/** Vendor, architecture and name of the GPU, when the browser reveals them. */
+async function readAdapterInfo(): Promise<string | undefined> {
+  try {
+    const gpu = (navigator as unknown as {
+      gpu: { requestAdapter(): Promise<{ info?: { vendor?: string; architecture?: string; description?: string } } | null> };
+    }).gpu;
+    const info = (await gpu.requestAdapter())?.info;
+    return [info?.vendor, info?.architecture, info?.description].filter(Boolean).join(" ") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class OnnxEngine implements InferenceEngine {
   private readonly preferBackend: ReadonlyArray<Backend>;
   private _backend: Backend;
+  private _deviceInfo: string | undefined;
   private session: ORTSession | null = null;
   private ort: ORTModule | null = null;
 
   get backend(): Backend {
     return this._backend;
+  }
+
+  get deviceInfo(): string | undefined {
+    return this._deviceInfo;
   }
 
   constructor(opts: OnnxEngineOptions = {}) {
@@ -120,6 +138,7 @@ export class OnnxEngine implements InferenceEngine {
           );
         }
         this._backend = backend;
+        this._deviceInfo = backend === "webgpu" ? await readAdapterInfo() : undefined;
         if (backend === "wasm") {
           console.warn(
             `[inference-core] Running on WASM backend. ` +

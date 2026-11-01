@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { queue } from "../lib/state/queue.svelte";
   import { theme } from "../lib/state/theme.svelte";
   import { ui } from "../lib/state/ui.svelte";
@@ -7,11 +8,10 @@
   import { toasts } from "../lib/state/ui.svelte";
   import {
     MODELS,
-    ImageDecodeError,
-    NetworkError,
-    NoModelLoaded,
-    BackendUnavailable,
     Cancelled,
+    ClientBusy,
+    describeError,
+    errorSummary,
   } from "inference-core";
   import CanvasStage from "../components/CanvasStage.svelte";
   import FloatingControls from "../components/FloatingControls.svelte";
@@ -26,7 +26,9 @@
 
   // Reactive so a model picked during a load is loaded right after it.
   let modelLoading = $state(false);
-  let attemptedModelId: string | null = null;
+  let failedModelId: string | null = null;
+  // Settles when the current load is over; processing waits for it.
+  let modelLoad: Promise<void> = Promise.resolve();
 
   // Load model when persistedModelId changes. Pre-fetches the model file with
   // progress tracking, then lets the worker load from browser cache.
@@ -36,18 +38,24 @@
       persistedModelId.value = MODELS[0]!.id;
       return;
     }
-    if (modelLoading || attemptedModelId === modelId) return;
+    if (modelLoading || snapshot.state === "processing") return;
+    if (snapshot.modelId === modelId && snapshot.state === "ready") return;
+    if (failedModelId === modelId) return;
     const modelDef = MODELS.find((m) => m.id === modelId);
     if (!modelDef) {
       persistedModelId.value = MODELS[0]!.id;
       return;
     }
-    attemptedModelId = modelId;
     modelLoading = true;
-    void fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`)
+    modelLoad = fetchWithProgress(modelDef.url, `Downloading ${modelDef.name}`)
       .then(() => inference.loadModel(modelId))
+      .then(() => { failedModelId = null; })
       .catch((e) => {
-        const message = e instanceof Error ? e.message : String(e);
+        // The client can't switch models while busy. This effect runs again once it is free.
+        if (e instanceof ClientBusy) return;
+        failedModelId = modelId;
+        console.error("model load failed", e);
+        const message = describeError(e);
         toasts.push(`Model failed to load: ${message}`, "error");
         engine.errorMessage = message;
       })
@@ -121,6 +129,10 @@
     const item = queue.items.find((i) => i.id === itemId);
     if (!item) return;
 
+    // A model picked a moment ago may have a load starting or under way.
+    await tick();
+    await modelLoad;
+
     const modelDef = MODELS.find((m) => m.id === snapshot.modelId);
     if (!modelDef) {
       toasts.push("Select a model first.", "error");
@@ -166,16 +178,11 @@
         toasts.push("Cancelled.", "info");
         return;
       }
-      let userMessage: string;
-      if (e instanceof ImageDecodeError) userMessage = `Could not decode ${(e as ImageDecodeError).filename}.`;
-      else if (e instanceof NetworkError) userMessage = `Network error loading model (status ${(e as NetworkError).status ?? "?"}).`;
-      else if (e instanceof BackendUnavailable) userMessage = `No suitable backend (${(e as BackendUnavailable).backend}).`;
-      else if (e instanceof NoModelLoaded) userMessage = "Pick a model first.";
-      else userMessage = e instanceof Error ? e.message : String(e);
-
+      console.error("processing failed", e);
+      const userMessage = describeError(e);
       toasts.push(userMessage, "error");
       engine.errorMessage = userMessage;
-      queue.markFailed(itemId, (e as { _tag?: string })._tag ?? "Unknown", userMessage);
+      queue.markFailed(itemId, errorSummary(e), userMessage);
     } finally {
       if (activeController === controller) {
         activeController = null;

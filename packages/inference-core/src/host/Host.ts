@@ -1,10 +1,10 @@
-import { Effect } from "effect";
+import { Cause, Effect, Runtime } from "effect";
 import { decode } from "../codec/decode.js";
 import { encode } from "../codec/encode.js";
 import { processImage, type ProcessImageOpts } from "../pipeline/pipeline.js";
 import { EngineEnv } from "../pipeline/runtime.js";
 import { settleTileSize } from "../pipeline/sizing.js";
-import { Cancelled, UnknownError, type ModelError } from "../errors.js";
+import { Cancelled, UnknownError, describeError, type ModelError } from "../errors.js";
 import type { ModelDef } from "../models/types.js";
 import {
   type ClientInbound,
@@ -78,7 +78,12 @@ export class Host {
           this.deps.engine.dispose();
           break;
       }
-    } catch (e) {
+    } catch (thrown) {
+      // Effect.runPromise wraps failures, and the wrapper hides the error's
+      // type and reason behind "An error has occurred".
+      const e = Runtime.isFiberFailure(thrown)
+        ? Cause.squash(thrown[Runtime.FiberFailureCauseId])
+        : thrown;
       // A cancelled run is not an error: the client already rejected the
       // pending promise locally. Restore "ready" so the next process call
       // is not blocked by a stale error state.
@@ -90,12 +95,17 @@ export class Host {
       const error =
         e instanceof Error ? e : new UnknownError({ message: String(e) });
       const itemId = "itemId" in msg ? msg.itemId : null;
+      const { backend, deviceInfo } = this.deps.engine;
+      const device = deviceInfo ? `${backend}: ${deviceInfo}` : backend;
+      console.error(`[host] ${msg.kind} failed on ${device}: ${describeError(error)}`, error);
       this.send({
         kind: "error",
         itemId: itemId ?? null,
-        error: serializeError(error as ModelError | Error),
+        error: { ...serializeError(error as ModelError | Error), device },
       });
-      this.setState("error");
+      // A failed image leaves the model loaded, so the next one can still run.
+      this.activeItem = null;
+      this.setState(msg.kind !== "load-model" && this.activeModel ? "ready" : "error");
     }
   }
 

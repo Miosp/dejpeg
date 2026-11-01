@@ -31,8 +31,8 @@ export const dejpegV2Texture: ModelDef = {
   name: "DeJPEGNet v2 + Texture",
   description:
     "DeJPEGNet v2 with a texture control. Adds natural-looking grain, which is synthetic and not recovered detail.",
-  url: "/models/dejpeg-v2-texture.onnx?v=H1_rhF3",
-  sizeBytes: 15_479_460,
+  url: "/models/dejpeg-v2-texture.onnx?v=H1_rhF3_fp32",
+  sizeBytes: 15_340_673,
   inputs: {
     input: "image",
     // The graph takes one gain of shape [1, 1], whatever the batch size.

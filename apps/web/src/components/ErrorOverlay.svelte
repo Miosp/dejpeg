@@ -10,6 +10,9 @@
     <div class="error-card">
       <p class="error-icon">!</p>
       <p class="error-msg">{active.errorMessage ?? "Processing failed"}</p>
+      {#if active.errorTag}
+        <p class="error-tag">{active.errorTag}</p>
+      {/if}
       <div class="error-actions">
         <button class="retry-btn" onclick={() => queue.update(active.id, { phase: "queued", errorMessage: undefined, errorTag: undefined })}>
           Retry
@@ -50,6 +53,14 @@
     margin: 0 0 8px 0;
   }
   .error-msg { color: var(--text-primary); margin: 0 0 16px 0; }
+  .error-tag {
+    color: var(--text-secondary);
+    font-family: monospace;
+    font-size: 12px;
+    margin: -8px 0 16px 0;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
   .retry-btn {
     padding: 8px 24px;
     border-radius: var(--radius);

@@ -18,4 +18,6 @@ export {
   WorkerCrash,
   InvalidOutput,
   Cancelled,
+  describeError,
+  errorSummary,
 } from "./errors.js";

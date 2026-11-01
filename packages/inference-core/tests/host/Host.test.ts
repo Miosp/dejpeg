@@ -39,6 +39,32 @@ async function makePngFile(size = 64): Promise<File> {
 }
 
 describe("Host", () => {
+  it("reports the real error type and device when a tile comes back as NaN", async () => {
+    const captured: HostOutbound[] = [];
+    const deps = {
+      ...makeMockDeps(captured),
+      engine: new MockEngine({
+        backend: "webgpu",
+        produce: () => ({ output: { data: new Float32Array([NaN]), shape: [1, 1] } }),
+      }),
+    };
+    const host = new Host({ deps, availableModels: [dejpegC40] });
+    await host.handle({ kind: "load-model", modelId: "dejpeg-c40" });
+    await host.handle({ kind: "process", itemId: "a", file: await makePngFile() });
+
+    const failure = captured.find((m) => m.kind === "error");
+    expect(failure?.kind).toBe("error");
+    if (failure?.kind !== "error") return;
+    expect(failure.itemId).toBe("a");
+    expect(failure.error._tag).toBe("InvalidOutput");
+    expect(failure.error.reason).toBe("nan");
+    expect(failure.error.message).toBeUndefined();
+    expect(failure.error.device).toBe("webgpu");
+
+    const states = captured.filter((m) => m.kind === "state");
+    expect(states.at(-1)?.kind === "state" && states.at(-1)?.state).toBe("ready");
+  });
+
   it("handles load-model by initializing the engine and emitting ready state", async () => {
     const captured: HostOutbound[] = [];
     const deps = makeMockDeps(captured);
